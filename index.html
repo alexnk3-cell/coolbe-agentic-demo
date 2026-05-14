@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coolbe Agentic AI — 顧客管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Helvetica Neue',Arial,'PingFang TC','Microsoft JhengHei',sans-serif;background:#F1F5F9;color:#1E293B;font-size:14px;display:flex;min-height:100vh;overflow-x:hidden}
+
+/* ── Sidebar ── */
+#sidebar{width:220px;min-height:100vh;background:#0F172A;display:flex;flex-direction:column;flex-shrink:0;position:fixed;left:0;top:0;bottom:0;z-index:200}
+.sb-logo{padding:18px 18px 14px;border-bottom:1px solid #1E293B}
+.sb-logo-text{font-size:15px;font-weight:800;color:#60A5FA;letter-spacing:-.3px}
+.sb-logo-text em{color:#A78BFA;font-style:normal}
+.sb-logo-sub{font-size:10px;color:#475569;margin-top:2px;letter-spacing:.05em}
+.sb-sec{font-size:10px;color:#334155;letter-spacing:.08em;text-transform:uppercase;padding:14px 12px 4px;font-weight:700}
+.sb-nav{flex:1;padding:10px 8px;overflow-y:auto}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13px;color:#94A3B8;cursor:pointer;margin-bottom:2px;transition:all .15s;user-select:none}
+.sb-item:hover{background:#1E293B;color:#E2E8F0}
+.sb-item.active{background:#1D4ED8;color:#fff;font-weight:600}
+.sb-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0}
+.sb-badge{margin-left:auto;background:#EF4444;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center}
+.sb-badge-warn{background:#F59E0B}
+.sb-bottom{padding:14px;border-top:1px solid #1E293B}
+.agent-status{display:flex;align-items:center;gap:8px;background:#0D2136;border-radius:8px;padding:10px 12px}
+.ap{width:7px;height:7px;border-radius:50%;background:#22C55E;animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.agent-txt{font-size:11px;color:#94A3B8}
+.agent-txt strong{color:#4ADE80;display:block;font-size:12px}
+
+/* ── Main ── */
+#main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* ── Topbar ── */
+.topbar{background:#fff;border-bottom:1px solid #E2E8F0;height:52px;display:flex;align-items:center;padding:0 28px;gap:10px;position:sticky;top:0;z-index:100}
+.breadcrumb{font-size:13px;color:#64748B;display:flex;align-items:center;gap:6px}
+.breadcrumb .bc-link{color:#2563EB;cursor:pointer;font-weight:500}
+.breadcrumb .bc-link:hover{text-decoration:underline}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+.topbar-search{display:flex;align-items:center;gap:6px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:5px 10px;font-size:12px;color:#94A3B8;cursor:pointer;transition:all .15s}
+.topbar-search:hover{border-color:#94A3B8}
+.topbar-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#DBEAFE,#EDE9FE);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer}
+.notif-btn{width:30px;height:30px;border-radius:8px;background:#F8FAFC;border:1px solid #E2E8F0;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative}
+.notif-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;background:#EF4444;border-radius:50%;border:1px solid #fff}
+
+/* ── Content ── */
+.content{padding:24px 28px;flex:1}
+
+/* ═══════════════ LIST VIEW ═══════════════ */
+.page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.page-title{font-size:20px;font-weight:800}
+.page-title small{font-size:13px;color:#64748B;font-weight:400;margin-left:8px}
+.btn{padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
+.btn-primary{background:#2563EB;color:#fff}
+.btn-primary:hover{background:#1D4ED8}
+.btn-outline{background:#fff;color:#2563EB;border:1px solid #BFDBFE}
+.btn-outline:hover{background:#EFF6FF}
+
+.stats-row{display:flex;gap:12px;margin-bottom:18px}
+.stat-chip{background:#fff;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat-chip-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.stat-chip-val{font-size:18px;font-weight:800}
+.stat-chip-lbl{color:#64748B}
+
+.filter-row{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search-wrap{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #E2E8F0;border-radius:8px;padding:7px 12px;flex:1;max-width:260px}
+.search-wrap input{border:none;outline:none;font-size:13px;background:transparent;width:100%;color:#1E293B}
+.search-wrap input::placeholder{color:#94A3B8}
+.flt-sel{background:#fff;border:1px solid #E2E8F0;border-radius:8px;padding:7px 12px;font-size:12px;color:#64748B;cursor:pointer;outline:none;transition:border .15s}
+.flt-sel:hover{border-color:#94A3B8}
+.sort-label{font-size:12px;color:#94A3B8;white-space:nowrap}
+
+/* Table */
+.cust-table{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.tbl-hdr{display:grid;grid-template-columns:44px 1fr 90px 80px 90px 90px 80px 96px;padding:10px 16px;background:#F8FAFC;border-bottom:2px solid #E2E8F0;font-size:11px;color:#64748B;font-weight:700;letter-spacing:.03em;align-items:center;gap:8px}
+.tbl-hdr .sort-col{cursor:pointer;user-select:none;display:flex;align-items:center;gap:3px}
+.tbl-hdr .sort-col:hover{color:#2563EB}
+.tbl-hdr .sort-col.asc::after{content:" ↑"}
+.tbl-hdr .sort-col.desc::after{content:" ↓"}
+
+.cust-row{display:grid;grid-template-columns:44px 1fr 90px 80px 90px 90px 80px 96px;padding:13px 16px;border-bottom:1px solid #F1F5F9;align-items:center;gap:8px;cursor:pointer;transition:background .1s}
+.cust-row:hover{background:#F8FAFC}
+.cust-row:last-child{border-bottom:none}
+
+.rank-badge{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0}
+.r1{background:#FEF9C3;color:#854D0E}
+.r2{background:#F3F4F6;color:#374151}
+.r3{background:#FDBA74;color:#7C2D12}
+.rn{background:#F1F5F9;color:#64748B}
+
+.row-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#DBEAFE,#EDE9FE);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.row-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.row-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-id{font-size:11px;color:#94A3B8}
+.row-tags{display:flex;gap:3px;flex-wrap:wrap;margin-top:2px}
+
+.tag-xs{padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap}
+.tx-b{background:#DBEAFE;color:#1D4ED8}
+.tx-g{background:#D1FAE5;color:#065F46}
+.tx-a{background:#FEF3C7;color:#92400E}
+.tx-r{background:#FEE2E2;color:#991B1B}
+.tx-p{background:#EDE9FE;color:#6D28D9}
+.tx-gr{background:#F1F5F9;color:#475569}
+
+.lc-pill{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;display:inline-block;white-space:nowrap}
+
+.days-col{text-align:center;font-size:13px;font-weight:700}
+.d-ok{color:#10B981}.d-mid{color:#F59E0B}.d-warn{color:#EF4444}
+
+.score-col{text-align:center}
+.score-num{font-size:13px;font-weight:700;margin-bottom:2px}
+.mini-bar{width:56px;height:5px;background:#E2E8F0;border-radius:3px;margin:0 auto;overflow:hidden}
+.mini-fill{height:100%;border-radius:3px}
+
+.risk-col{text-align:center;font-size:13px;font-weight:700}
+.clv-col{text-align:right;font-size:12px;font-weight:600;white-space:nowrap}
+.act-col{display:flex;gap:4px;justify-content:flex-end}
+.act-btn{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;border:none;transition:all .15s}
+.act-btn:hover{transform:scale(1.12)}
+
+/* ═══════════════ PROFILE VIEW ═══════════════ */
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#2563EB;font-weight:600;cursor:pointer;margin-bottom:18px;padding:6px 12px;background:#EFF6FF;border-radius:8px;border:none;transition:background .15s}
+.back-btn:hover{background:#DBEAFE}
+
+.cust-card{background:#fff;border-radius:14px;padding:22px 26px;display:flex;align-items:center;gap:20px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:18px}
+.avatar{width:66px;height:66px;border-radius:50%;background:linear-gradient(135deg,#DBEAFE,#EDE9FE);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.cust-name{font-size:21px;font-weight:800;margin-bottom:4px}
+.cust-meta{font-size:12px;color:#64748B;margin-bottom:10px}
+.tags{display:flex;flex-wrap:wrap;gap:5px}
+.tag{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.t-b{background:#DBEAFE;color:#1D4ED8}.t-g{background:#D1FAE5;color:#065F46}
+.t-p{background:#EDE9FE;color:#6D28D9}.t-a{background:#FEF3C7;color:#92400E}.t-r{background:#FEE2E2;color:#991B1B}
+.cust-stats{margin-left:auto;display:flex;gap:24px;flex-shrink:0}
+.cust-stat{text-align:center}
+.cust-stat-lbl{font-size:11px;color:#94A3B8;margin-bottom:3px}
+.cust-stat-val{font-size:15px;font-weight:800}
+.cust-actions{display:flex;gap:8px;margin-left:16px;flex-shrink:0}
+.action-btn{padding:8px 14px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;border:none;display:flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.ab-line{background:#06B6D4;color:#fff}
+.ab-line:hover{background:#0891B2}
+.ab-boost{background:#EDE9FE;color:#6D28D9;border:1px solid #DDD6FE}
+.ab-boost:hover{background:#DDD6FE}
+.ab-list{background:#D1FAE5;color:#065F46;border:1px solid #A7F3D0}
+.ab-list:hover{background:#A7F3D0}
+.ab-list.added{background:#10B981;color:#fff;border-color:#10B981}
+
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.kpi-lbl{font-size:11px;color:#64748B;font-weight:600;letter-spacing:.03em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.kpi-val{font-size:26px;font-weight:800;line-height:1;margin-bottom:4px}
+.kpi-sub{font-size:12px;color:#64748B}
+.up{color:#10B981;font-weight:700}.warn{color:#F59E0B;font-weight:700}.dn{color:#EF4444;font-weight:700}
+
+.mid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.card-h{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.card-icon{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+
+.right-stack{display:flex;flex-direction:column;gap:14px}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center}
+.gauge-legend{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.leg{font-size:11px;display:flex;align-items:center;gap:4px}
+.leg-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+
+.lc-track{display:flex;align-items:stretch;gap:0;margin-top:2px}
+.lc-step{flex:1;text-align:center;font-size:10px;font-weight:600;padding:6px 3px;border-radius:5px;color:#94A3B8;background:#F8FAFC}
+.lc-step.cur{background:#DBEAFE;color:#1D4ED8}
+.lc-step.risk{background:#FEF3C7;color:#92400E}
+.lc-arr{display:flex;align-items:center;padding:0 2px;color:#CBD5E1;font-size:10px}
+
+/* Scoring Engine */
+.scoring-card{background:#fff;border-radius:12px;padding:24px 26px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:18px}
+
+/* AI Insight */
+.ai-box{background:linear-gradient(135deg,#EEF2FF,#F5F3FF);border:1px solid #C7D2FE;border-radius:14px;padding:22px;margin-bottom:18px}
+.ai-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.ai-ico{width:36px;height:36px;background:linear-gradient(135deg,#4F46E5,#7C3AED);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px;flex-shrink:0}
+.ai-title{font-size:14px;font-weight:800;color:#3730A3}
+.ai-time{font-size:11px;color:#6366F1;margin-top:2px}
+.live-badge{background:#4F46E5;color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em}
+.ai-body{font-size:14px;line-height:1.85;color:#1E293B;margin-bottom:12px}
+.ai-alert{background:#FEF9EC;border-left:3px solid #F59E0B;padding:9px 13px;border-radius:0 6px 6px 0;font-size:13px;color:#92400E;margin-bottom:14px;display:flex;align-items:flex-start;gap:7px}
+.act-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn-purple{background:#4F46E5;color:#fff;border:none;padding:9px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .15s}
+.btn-purple:hover{background:#4338CA}
+.btn-white{background:#fff;color:#4F46E5;border:1px solid #C7D2FE;padding:9px 14px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-white:hover{background:#EEF2FF}
+.chip{background:#F5F3FF;color:#6D28D9;border:1px solid #DDD6FE;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500}
+.lift{background:rgba(255,255,255,.22);color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+
+/* Timeline */
+.tl-item{display:flex;gap:12px;margin-bottom:14px}
+.tl-ico{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.tl-vline{width:2px;flex:1;background:#E2E8F0;margin-top:4px;min-height:10px}
+.tl-body{flex:1}
+.tl-ev{font-size:13px;font-weight:700;margin-bottom:2px}
+.tl-det{font-size:12px;color:#64748B}
+.tl-t{font-size:11px;color:#94A3B8;white-space:nowrap;padding-top:4px;flex-shrink:0}
+
+/* ── Toast ── */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast-item{background:#1E293B;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;animation:slideIn .3s ease;box-shadow:0 4px 16px rgba(0,0,0,.2);pointer-events:all}
+.toast-ok{background:#10B981}
+.toast-warn{background:#F59E0B;color:#1E293B}
+@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── Modal ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;visibility:hidden;transition:all .2s}
+.overlay.open{opacity:1;visibility:visible}
+.modal{background:#fff;border-radius:16px;padding:26px;width:480px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.2);transform:scale(.96);transition:transform .2s}
+.overlay.open .modal{transform:scale(1)}
+.modal-h{font-size:15px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.modal-close{margin-left:auto;width:26px;height:26px;border-radius:50%;border:none;background:#F1F5F9;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:#E2E8F0}
+.msg-preview{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:13px;font-size:13px;line-height:1.75;color:#1E293B;margin-bottom:12px}
+textarea.msg-edit{width:100%;border:1px solid #E2E8F0;border-radius:8px;padding:10px;font-size:13px;line-height:1.7;outline:none;resize:vertical;min-height:80px;font-family:inherit;color:#1E293B;margin-bottom:12px}
+textarea.msg-edit:focus{border-color:#6366F1;box-shadow:0 0 0 2px rgba(99,102,241,.1)}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end}
+.boost-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+input[type=range]{flex:1;accent-color:#4F46E5;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-text">Coolbe <em>Agentic AI</em></div>
+    <div class="sb-logo-sub">v2.4 · 顧問後台</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">主要功能</div>
+    <div class="sb-item" onclick="showToast('功能開發中','info')"><span class="sb-icon">🏠</span>首頁</div>
+    <div class="sb-item active" id="nav-customers" onclick="showListView()"><span class="sb-icon">👥</span>顧客列表</div>
+    <div class="sb-item" onclick="showToast('推進名單已載入 3 位優先顧客','ok')"><span class="sb-icon">🎯</span>推進名單<span class="sb-badge">3</span></div>
+
+    <div class="sb-sec">AI 工具</div>
+    <div class="sb-item" onclick="showToast('FAQ 審核列表載入中…','info')"><span class="sb-icon">✅</span>FAQ 審核<span class="sb-badge">5</span></div>
+    <div class="sb-item" onclick="showToast('儀表板載入中…','info')"><span class="sb-icon">📊</span>儀表板</div>
+    <div class="sb-item" onclick="showToast('AI 推薦引擎載入中…','info')"><span class="sb-icon">💡</span>AI 推薦引擎<span class="sb-badge sb-badge-warn">2</span></div>
+    <div class="sb-item" onclick="showToast('對話摘要載入中…','info')"><span class="sb-icon">💬</span>對話摘要</div>
+
+    <div class="sb-sec">管理</div>
+    <div class="sb-item" onclick="showToast('交接助手載入中…','info')"><span class="sb-icon">🔄</span>交接助手</div>
+    <div class="sb-item" onclick="showToast('設定頁面載入中…','info')"><span class="sb-icon">⚙️</span>AI 助理設定</div>
+  </nav>
+  <div class="sb-bottom">
+    <div class="agent-status">
+      <div class="ap"></div>
+      <div class="agent-txt"><strong>Agent 運行中</strong>已處理 847 事件</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main id="main">
+  <div class="topbar">
+    <div class="breadcrumb" id="breadcrumb">
+      <span class="bc-link" onclick="showListView()">顧客列表</span>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-search" onclick="showToast('全站搜尋開啟','info')">🔍 搜尋顧客、功能…</div>
+      <div class="notif-btn" onclick="showToast('📋 FAQ 審核 5 筆待處理','warn')">🔔<div class="notif-dot"></div></div>
+      <div class="topbar-avatar" title="顧問：王小明">👤</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ LIST VIEW ══ -->
+    <div id="listView">
+      <div class="page-hdr">
+        <div class="page-title">顧客列表 <small id="custCount"></small></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" onclick="showToast('匯出 CSV 下載中…','ok')">📥 匯出名單</button>
+          <button class="btn btn-primary" onclick="showToast('AI 推薦引擎啟動','ok')">✦ AI 一鍵撈名單</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="stat-chip"><div class="stat-chip-dot" style="background:#2563EB"></div><span class="stat-chip-val" id="statTotal">124</span><span class="stat-chip-lbl">活躍顧客</span></div>
+        <div class="stat-chip"><div class="stat-chip-dot" style="background:#EF4444"></div><span class="stat-chip-val" id="statHighRisk">8</span><span class="stat-chip-lbl">高流失風險</span></div>
+        <div class="stat-chip"><div class="stat-chip-dot" style="background:#F59E0B"></div><span class="stat-chip-val">3</span><span class="stat-chip-lbl">今日優先聯繫</span></div>
+        <div class="stat-chip"><div class="stat-chip-dot" style="background:#10B981"></div><span class="stat-chip-val">2</span><span class="stat-chip-lbl">本週預約</span></div>
+        <div class="stat-chip" style="margin-left:auto"><div class="stat-chip-dot" style="background:#7C3AED"></div><span class="stat-chip-val" style="color:#7C3AED">Agent 更新</span><span class="stat-chip-lbl">3 分鐘前</span></div>
+      </div>
+
+      <!-- Filters -->
+      <div class="filter-row">
+        <div class="search-wrap">
+          <span>🔍</span>
+          <input id="searchInput" type="text" placeholder="搜尋姓名、標籤、備註…" oninput="renderList()">
+        </div>
+        <select class="flt-sel" id="fltLifecycle" onchange="renderList()">
+          <option value="">全部生命週期</option>
+          <option>新客</option>
+          <option>成長期</option>
+          <option>熟客</option>
+          <option>高價值</option>
+        </select>
+        <select class="flt-sel" id="fltRisk" onchange="renderList()">
+          <option value="">全部風險等級</option>
+          <option>安全 (0–39)</option>
+          <option>警戒 (40–59)</option>
+          <option>危險 (60–100)</option>
+        </select>
+        <select class="flt-sel" id="fltLevel" onchange="renderList()">
+          <option value="">全部會員等級</option>
+          <option>VIP</option>
+          <option>金牌</option>
+          <option>銀牌</option>
+          <option>一般</option>
+        </select>
+        <span class="sort-label">排序：</span>
+        <select class="flt-sel" id="sortBy" onchange="renderList()">
+          <option value="rank">推進排名</option>
+          <option value="churn">流失風險</option>
+          <option value="clv">CLV 高→低</option>
+          <option value="days">最近互動</option>
+          <option value="return">回店傾向</option>
+        </select>
+      </div>
+
+      <!-- Table -->
+      <div class="cust-table">
+        <div class="tbl-hdr">
+          <div>排名</div>
+          <div>顧客</div>
+          <div>生命週期</div>
+          <div style="text-align:center">距互動</div>
+          <div class="sort-col" onclick="setSortBy('return')">回店傾向</div>
+          <div class="sort-col" onclick="setSortBy('churn')">流失風險</div>
+          <div class="sort-col" style="text-align:right" onclick="setSortBy('clv')">CLV</div>
+          <div style="text-align:right">操作</div>
+        </div>
+        <div id="custTableBody"></div>
+      </div>
+    </div><!-- /listView -->
+
+    <!-- ══ PROFILE VIEW ══ -->
+    <div id="profileView" style="display:none">
+      <button class="back-btn" onclick="showListView()">← 返回顧客列表</button>
+
+      <!-- Customer Header -->
+      <div class="cust-card" id="profileHeader"></div>
+
+      <!-- KPI Row -->
+      <div class="kpi-row" id="profileKpi"></div>
+
+      <!-- Mid Grid -->
+      <div class="mid">
+        <!-- Radar -->
+        <div class="card">
+          <div class="card-h"><div class="card-icon" style="background:#EFF6FF">🎯</div>偏好輪廓雷達</div>
+          <div style="display:flex;justify-content:center">
+            <svg width="300" height="290" viewBox="0 0 320 300">
+              <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#4F46E5" stop-opacity=".25"/><stop offset="100%" stop-color="#7C3AED" stop-opacity=".1"/></linearGradient></defs>
+              <polygon points="160,135 179,148 172,168 148,168 141,148" fill="none" stroke="#E2E8F0" stroke-width="1"/>
+              <polygon points="160,115 198,142 185,181 135,181 122,142" fill="none" stroke="#E2E8F0" stroke-width="1"/>
+              <polygon points="160,95 217,135 197,193 123,193 103,135" fill="none" stroke="#E2E8F0" stroke-width="1"/>
+              <polygon points="160,75 236,129 210,206 110,206 84,129" fill="none" stroke="#E2E8F0" stroke-width="1"/>
+              <polygon points="160,55 255,122 222,219 98,219 65,122" fill="none" stroke="#E2E8F0" stroke-width="1.5"/>
+              <line x1="160" y1="155" x2="160" y2="55" stroke="#E2E8F0" stroke-width="1"/>
+              <line x1="160" y1="155" x2="255" y2="122" stroke="#E2E8F0" stroke-width="1"/>
+              <line x1="160" y1="155" x2="222" y2="219" stroke="#E2E8F0" stroke-width="1"/>
+              <line x1="160" y1="155" x2="98" y2="219" stroke="#E2E8F0" stroke-width="1"/>
+              <line x1="160" y1="155" x2="65" y2="122" stroke="#E2E8F0" stroke-width="1"/>
+              <polygon points="160,67 231,132 198,208 113,220 93,133" fill="url(#rg)" stroke="#4F46E5" stroke-width="2.5" stroke-linejoin="round"/>
+              <circle cx="160" cy="67" r="5" fill="#4F46E5" stroke="#fff" stroke-width="2"/>
+              <circle cx="231" cy="132" r="5" fill="#4F46E5" stroke="#fff" stroke-width="2"/>
+              <circle cx="198" cy="208" r="5" fill="#4F46E5" stroke="#fff" stroke-width="2"/>
+              <circle cx="113" cy="220" r="5" fill="#4F46E5" stroke="#fff" stroke-width="2"/>
+              <circle cx="93" cy="133" r="5" fill="#4F46E5" stroke="#fff" stroke-width="2"/>
+              <text x="160" y="42" text-anchor="middle" font-size="12" font-weight="700" fill="#1E293B">再購意願</text>
+              <text x="160" y="54" text-anchor="middle" font-size="11" fill="#7C3AED" font-weight="600">88%</text>
+              <text x="268" y="120" text-anchor="start" font-size="12" font-weight="700" fill="#1E293B">品類</text>
+              <text x="268" y="133" text-anchor="start" font-size="12" font-weight="700" fill="#1E293B">專注度</text>
+              <text x="268" y="145" text-anchor="start" font-size="11" fill="#7C3AED" font-weight="600">75%</text>
+              <text x="222" y="234" text-anchor="middle" font-size="12" font-weight="700" fill="#1E293B">促購反應</text>
+              <text x="222" y="246" text-anchor="middle" font-size="11" fill="#7C3AED" font-weight="600">65%</text>
+              <text x="98" y="234" text-anchor="middle" font-size="12" font-weight="700" fill="#1E293B">退換傾向</text>
+              <text x="98" y="246" text-anchor="middle" font-size="11" fill="#10B981" font-weight="600">低（佳）</text>
+              <text x="52" y="120" text-anchor="end" font-size="12" font-weight="700" fill="#1E293B">價格</text>
+              <text x="52" y="133" text-anchor="end" font-size="12" font-weight="700" fill="#1E293B">敏感度</text>
+              <text x="52" y="145" text-anchor="end" font-size="11" fill="#7C3AED" font-weight="600">70%</text>
+            </svg>
+          </div>
+        </div>
+        <!-- Right Stack -->
+        <div class="right-stack">
+          <!-- Churn Gauge -->
+          <div class="card">
+            <div class="card-h"><div class="card-icon" style="background:#FEF2F2">⚠️</div>流失風險分數</div>
+            <div class="gauge-wrap">
+              <svg width="220" height="110" viewBox="0 0 220 110">
+                <defs><linearGradient id="gGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#10B981"/><stop offset="45%" stop-color="#F59E0B"/><stop offset="70%" stop-color="#EF4444"/></linearGradient></defs>
+                <circle cx="110" cy="90" r="75" fill="none" stroke="#F1F5F9" stroke-width="18" stroke-dasharray="235.62 235.62" transform="rotate(180 110 90)" stroke-linecap="round"/>
+                <circle cx="110" cy="90" r="75" fill="none" stroke="url(#gGrad)" stroke-width="18" stroke-dasharray="172.0 330.65" transform="rotate(180 110 90)" stroke-linecap="round"/>
+                <text x="110" y="82" text-anchor="middle" font-size="34" font-weight="800" fill="#EF4444">73</text>
+                <text x="110" y="100" text-anchor="middle" font-size="11" fill="#64748B">/ 100　高風險</text>
+                <text x="28" y="99" text-anchor="middle" font-size="10" fill="#94A3B8">0</text>
+                <text x="192" y="99" text-anchor="middle" font-size="10" fill="#94A3B8">100</text>
+              </svg>
+            </div>
+            <div class="gauge-legend">
+              <span class="leg"><span class="leg-dot" style="background:#10B981"></span>安全 0–39</span>
+              <span class="leg"><span class="leg-dot" style="background:#F59E0B"></span>警戒 40–59</span>
+              <span class="leg"><span class="leg-dot" style="background:#EF4444"></span>危險 60–100</span>
+            </div>
+          </div>
+          <!-- Lifecycle -->
+          <div class="card" style="padding:16px 18px">
+            <div class="card-h" style="margin-bottom:10px"><div class="card-icon" style="background:#F5F3FF">🔄</div>生命週期位置</div>
+            <div class="lc-track">
+              <div class="lc-step">新客</div><div class="lc-arr">›</div>
+              <div class="lc-step">成長</div><div class="lc-arr">›</div>
+              <div class="lc-step cur">熟客 ◀</div><div class="lc-arr">›</div>
+              <div class="lc-step">高價值</div><div class="lc-arr">›</div>
+              <div class="lc-step risk">沉睡風險</div>
+            </div>
+            <div style="display:flex;gap:18px;margin-top:10px;font-size:12px;color:#64748B">
+              <span>在此階段 <strong style="color:#1E293B">186 天</strong></span>
+              <span>下一風險 <strong style="color:#F59E0B">預估 14 天後</strong></span>
+            </div>
+          </div>
+          <!-- RFM -->
+          <div class="card" style="padding:16px 18px">
+            <div class="card-h" style="margin-bottom:10px"><div class="card-icon" style="background:#EFF6FF">📊</div>RFM 健康儀表</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="width:78px;font-size:12px;color:#64748B">R 最近消費</span>
+                <div style="flex:1;height:7px;background:#F1F5F9;border-radius:4px;overflow:hidden"><div style="width:60%;height:100%;background:#F59E0B;border-radius:4px"></div></div>
+                <span style="width:32px;font-size:12px;font-weight:700;text-align:right;color:#F59E0B">3/5</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="width:78px;font-size:12px;color:#64748B">F 消費頻率</span>
+                <div style="flex:1;height:7px;background:#F1F5F9;border-radius:4px;overflow:hidden"><div style="width:80%;height:100%;background:#2563EB;border-radius:4px"></div></div>
+                <span style="width:32px;font-size:12px;font-weight:700;text-align:right;color:#2563EB">4/5</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="width:78px;font-size:12px;color:#64748B">M 消費金額</span>
+                <div style="flex:1;height:7px;background:#F1F5F9;border-radius:4px;overflow:hidden"><div style="width:100%;height:100%;background:#10B981;border-radius:4px"></div></div>
+                <span style="width:32px;font-size:12px;font-weight:700;text-align:right;color:#10B981">5/5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scoring Engine -->
+      <div class="scoring-card">
+        <div class="card-h" style="margin-bottom:20px">
+          <div class="card-icon" style="background:#F0FDF4">⚙️</div>
+          影響因子計算 Scoring Engine
+          <span style="margin-left:8px;font-size:11px;background:#F1F5F9;color:#64748B;padding:3px 10px;border-radius:20px;font-weight:500">依 Slide 17 公式</span>
+        </div>
+        <div style="display:grid;grid-template-columns:210px 1fr;gap:18px;margin-bottom:20px">
+          <div style="background:#1E293B;border-radius:12px;padding:16px;color:#fff">
+            <div style="font-size:11px;color:#94A3B8;letter-spacing:.05em;margin-bottom:10px">時間衰退公式</div>
+            <div style="font-size:16px;font-family:monospace;color:#7DD3FC;margin-bottom:12px">decay(t) = e<sup style="font-size:10px">−λ×t</sup></div>
+            <div style="font-size:11px;color:#CBD5E1;line-height:2.1">
+              <div style="display:flex;justify-content:space-between"><span style="color:#86EFAC">購買</span><span>λ=0.030（23天）</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:#FCD34D">互動</span><span>λ=0.070（10天）</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:#F9A8D4">點擊</span><span>λ=0.150（5天）</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#64748B;margin-bottom:8px;letter-spacing:.03em">近期事件衰退計算（家居品類）</div>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr style="background:#F8FAFC">
+                <th style="text-align:left;padding:6px 8px;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0">事件</th>
+                <th style="text-align:center;padding:6px 8px;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0">類型</th>
+                <th style="text-align:center;padding:6px 8px;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0">距今</th>
+                <th style="text-align:center;padding:6px 8px;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0">e<sup>−λt</sup></th>
+                <th style="text-align:center;padding:6px 8px;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0">基礎權重</th>
+                <th style="text-align:right;padding:6px 8px;color:#64748B;font-weight:600;border-bottom:2px solid #E2E8F0">貢獻分</th>
+              </tr></thead>
+              <tbody>
+                <tr style="border-bottom:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:500">購買 天然植萃洗碗精</td><td style="text-align:center;padding:7px 8px"><span style="background:#D1FAE5;color:#065F46;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">購買</span></td><td style="text-align:center;padding:7px 8px;color:#64748B">20天</td><td style="text-align:center;padding:7px 8px;font-family:monospace;color:#2563EB;font-weight:600">0.549</td><td style="text-align:center;padding:7px 8px;color:#64748B">3.0</td><td style="text-align:right;padding:7px 8px;font-weight:700;color:#10B981">1.65</td></tr>
+                <tr style="border-bottom:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:500">購買 竹纖維浴巾</td><td style="text-align:center;padding:7px 8px"><span style="background:#D1FAE5;color:#065F46;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">購買</span></td><td style="text-align:center;padding:7px 8px;color:#64748B">39天</td><td style="text-align:center;padding:7px 8px;font-family:monospace;color:#2563EB;font-weight:600">0.311</td><td style="text-align:center;padding:7px 8px;color:#64748B">3.0</td><td style="text-align:right;padding:7px 8px;font-weight:700;color:#10B981">0.93</td></tr>
+                <tr style="border-bottom:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:500">開啟 LINE 推播</td><td style="text-align:center;padding:7px 8px"><span style="background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">互動</span></td><td style="text-align:center;padding:7px 8px;color:#64748B">22天</td><td style="text-align:center;padding:7px 8px;font-family:monospace;color:#2563EB;font-weight:600">0.213</td><td style="text-align:center;padding:7px 8px;color:#64748B">1.5</td><td style="text-align:right;padding:7px 8px;font-weight:700;color:#10B981">0.32</td></tr>
+                <tr style="border-bottom:1px solid #F1F5F9"><td style="padding:7px 8px;font-weight:500">瀏覽 北歐風棉麻沙發套</td><td style="text-align:center;padding:7px 8px"><span style="background:#FCE7F3;color:#831843;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">點擊</span></td><td style="text-align:center;padding:7px 8px;color:#64748B">0天</td><td style="text-align:center;padding:7px 8px;font-family:monospace;color:#2563EB;font-weight:600">1.000</td><td style="text-align:center;padding:7px 8px;color:#64748B">1.0</td><td style="text-align:right;padding:7px 8px;font-weight:700;color:#10B981">1.00</td></tr>
+                <tr><td style="padding:7px 8px;font-weight:500">收藏 植物系擴香瓶</td><td style="text-align:center;padding:7px 8px"><span style="background:#FCE7F3;color:#831843;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:600">點擊</span></td><td style="text-align:center;padding:7px 8px;color:#64748B">0天</td><td style="text-align:center;padding:7px 8px;font-family:monospace;color:#2563EB;font-weight:600">1.000</td><td style="text-align:center;padding:7px 8px;color:#64748B">1.0</td><td style="text-align:right;padding:7px 8px;font-weight:700;color:#10B981">1.00</td></tr>
+              </tbody>
+              <tfoot>
+                <tr style="background:#F8FAFC;border-top:2px solid #E2E8F0"><td colspan="5" style="padding:8px;font-weight:700;text-align:right;color:#1E293B">家居品類原始總分</td><td style="padding:8px;font-weight:800;text-align:right;color:#4F46E5;font-size:14px">4.90</td></tr>
+                <tr style="background:#EEF2FF"><td colspan="5" style="padding:8px;font-weight:700;text-align:right;color:#3730A3">正規化後偏好分（÷5.6）</td><td style="padding:8px;font-weight:800;text-align:right;color:#4F46E5;font-size:14px">88%</td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+          <div style="background:#F8FAFC;border-radius:10px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#1E293B;margin-bottom:3px">回店傾向分拆解</div>
+            <div style="font-size:11px;color:#64748B;margin-bottom:14px">score = Σ 各因子 → <strong style="color:#2563EB">0.67</strong></div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#64748B">近14天互動數（5次）× 0.30</span><span style="font-weight:700">0.26</span></div><div style="background:#E2E8F0;border-radius:3px;height:7px;overflow:hidden"><div style="width:38.8%;height:100%;background:#2563EB;border-radius:3px"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#64748B">開封率 76% × 0.25</span><span style="font-weight:700">0.19</span></div><div style="background:#E2E8F0;border-radius:3px;height:7px;overflow:hidden"><div style="width:28.4%;height:100%;background:#7C3AED;border-radius:3px"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#64748B">意圖熱度（庫存詢問）× 0.25</span><span style="font-weight:700">0.15</span></div><div style="background:#E2E8F0;border-radius:3px;height:7px;overflow:hidden"><div style="width:22.4%;height:100%;background:#10B981;border-radius:3px"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#64748B">事件觸發（週期補貨）× 0.10</span><span style="font-weight:700">0.07</span></div><div style="background:#E2E8F0;border-radius:3px;height:7px;overflow:hidden"><div style="width:10.4%;height:100%;background:#F59E0B;border-radius:3px"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="color:#64748B">Manual Boost（未設定）</span><span style="font-weight:700;color:#94A3B8">0.00</span></div><div style="background:#E2E8F0;border-radius:3px;height:7px"><div style="width:0%"></div></div></div>
+              <div style="border-top:2px dashed #E2E8F0;padding-top:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:700">合計</span><span style="font-size:21px;font-weight:800;color:#2563EB">0.67 <span style="font-size:12px;color:#64748B;font-weight:500">高</span></span></div>
+            </div>
+          </div>
+          <div style="background:#F8FAFC;border-radius:10px;padding:16px">
+            <div style="font-size:12px;font-weight:700;color:#1E293B;margin-bottom:3px">推進名單排名計算</div>
+            <div style="font-size:11px;color:#64748B;margin-bottom:14px">rank = 0.40×回店 + 0.30×CLV + 0.20×RFM + 0.10×緊迫度</div>
+            <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:14px;height:14px;background:#2563EB;border-radius:3px;display:inline-block;flex-shrink:0"></span><span style="flex:1;color:#64748B">回店傾向 0.67 × 0.40</span><span style="font-family:monospace;font-weight:700">= 0.268</span></div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:14px;height:14px;background:#7C3AED;border-radius:3px;display:inline-block;flex-shrink:0"></span><span style="flex:1;color:#64748B">CLV 正規化 0.55 × 0.30</span><span style="font-family:monospace;font-weight:700">= 0.165</span></div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:14px;height:14px;background:#10B981;border-radius:3px;display:inline-block;flex-shrink:0"></span><span style="flex:1;color:#64748B">RFM 正規化 0.82 × 0.20</span><span style="font-family:monospace;font-weight:700">= 0.164</span></div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px"><span style="width:14px;height:14px;background:#F59E0B;border-radius:3px;display:inline-block;flex-shrink:0"></span><span style="flex:1;color:#64748B">緊迫度 0.70 × 0.10</span><span style="font-family:monospace;font-weight:700">= 0.070</span></div>
+              <div style="border-top:2px dashed #E2E8F0;padding-top:7px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:700">綜合分</span><span style="font-size:19px;font-weight:800;color:#1E293B;font-family:monospace">0.667</span></div>
+            </div>
+            <div style="background:linear-gradient(135deg,#1E293B,#0F172A);border-radius:10px;padding:14px;color:#fff;text-align:center">
+              <div style="font-size:10px;color:#94A3B8;margin-bottom:4px;letter-spacing:.05em">本顧問名單排名</div>
+              <div style="font-size:40px;font-weight:900;color:#FCD34D;line-height:1">#3</div>
+              <div style="font-size:12px;color:#CBD5E1;margin-top:3px">共 124 位活躍顧客</div>
+              <div style="margin-top:8px;display:flex;gap:5px;justify-content:center">
+                <span style="background:#4F46E5;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px">今日優先</span>
+                <span style="background:#D97706;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px">⚠ 48hr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Insight -->
+      <div class="ai-box">
+        <div class="ai-hdr">
+          <div class="ai-ico">✦</div>
+          <div><div class="ai-title">AI 洞察摘要</div><div class="ai-time">由 Coolbe Agent 自動生成 · 14 分鐘前更新</div></div>
+          <span class="live-badge" style="margin-left:auto">LIVE</span>
+        </div>
+        <div class="ai-body">陳佳婷為中高消費力熟客，平均每 <strong>18 天</strong>回購一次，目前已超出週期 <strong>6 天</strong>，距上次消費 24 天。偏好購買<strong>家居與清潔品類</strong>，對<strong>滿額折扣</strong>的促購反應明顯優於限時優惠（歷史轉換差距 +34%）。累計消費 NT$31,280，共 23 筆訂單，預估未來 12 個月 CLV 為 NT$68,400，屬高潛力顧客。</div>
+        <div class="ai-alert"><span>⚠</span><span>流失風險達 <strong>73 分（高風險）</strong>，建議於 <strong>48 小時內</strong>執行挽留行動。超過此視窗後挽留成功率將下降約 40%。</span></div>
+        <div style="font-size:12px;font-weight:700;color:#3730A3;margin-bottom:9px;letter-spacing:.03em">▸ 建議行動</div>
+        <div class="act-row">
+          <button class="btn-purple" onclick="openPushModal()">✉ 立即推送 Line 訊息 <span class="lift">預估 +34% 回購</span></button>
+          <button class="btn-white" onclick="showToast('新品組合推薦已加入待發清單','ok')">📦 推薦家居新品組合</button>
+          <span class="chip">滿 888 折 100 優惠券</span>
+          <span class="chip">週末傍晚 17:00–19:00</span>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="card">
+        <div class="card-h">
+          <div class="card-icon" style="background:#F0FDF4">📋</div>
+          行為時間軸
+          <span style="margin-left:auto;font-size:12px;color:#2563EB;font-weight:600;cursor:pointer" onclick="showToast('完整紀錄載入中…','info')">查看完整紀錄 →</span>
+        </div>
+        <div class="tl-item"><div style="display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0"><div class="tl-ico" style="background:#FEF3C7">👁</div><div class="tl-vline"></div></div><div class="tl-body"><div class="tl-ev">瀏覽商品頁：北歐風棉麻沙發套</div><div class="tl-det">停留 4 分 32 秒 · 未加入購物車</div></div><div class="tl-t">今天 14:23</div></div>
+        <div class="tl-item"><div style="display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0"><div class="tl-ico" style="background:#FEF3C7">👁</div><div class="tl-vline"></div></div><div class="tl-body"><div class="tl-ev">瀏覽商品頁：植物系擴香瓶 3 件組</div><div class="tl-det">停留 2 分 10 秒 · 加入收藏</div></div><div class="tl-t">今天 14:18</div></div>
+        <div class="tl-item"><div style="display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0"><div class="tl-ico" style="background:#D1FAE5">📦</div><div class="tl-vline"></div></div><div class="tl-body"><div class="tl-ev">完成訂單 #ORD-20240421 · NT$1,480</div><div class="tl-det">天然植萃洗碗精 ×2、除黴噴霧 ×1 · 使用滿 888 折 100</div></div><div class="tl-t">20 天前</div></div>
+        <div class="tl-item"><div style="display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0"><div class="tl-ico" style="background:#EDE9FE">📨</div><div class="tl-vline"></div></div><div class="tl-body"><div class="tl-ev">開啟 Line 推播：春季家居特輯</div><div class="tl-det">點擊 2/3 個連結 · 停留 3 分 41 秒</div></div><div class="tl-t">22 天前</div></div>
+        <div class="tl-item"><div style="display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0"><div class="tl-ico" style="background:#D1FAE5">📦</div><div style="width:2px;flex:1;background:transparent"></div></div><div class="tl-body"><div class="tl-ev">完成訂單 #ORD-20240405 · NT$2,240</div><div class="tl-det">香氛蠟燭套組 ×1、竹纖維浴巾 ×2 · 使用滿 1500 折 200</div></div><div class="tl-t">39 天前</div></div>
+      </div>
+    </div><!-- /profileView -->
+
+  </div><!-- /content -->
+</main>
+
+<!-- ── Toast Container ── -->
+<div id="toast"></div>
+
+<!-- ── Push Modal ── -->
+<div class="overlay" id="pushOverlay" onclick="if(event.target===this)closePushModal()">
+  <div class="modal">
+    <div class="modal-h">✉ 推送 Line 訊息<button class="modal-close" onclick="closePushModal()">✕</button></div>
+    <div style="font-size:12px;color:#64748B;margin-bottom:10px">收件人：陳佳婷（CB-00124581）</div>
+    <div class="msg-preview">🌿 Hi 佳婷～<br>您收藏的植物系擴香瓶和北歐沙發套今天都有現貨喔！<br>本週滿 NT$888 現折 NT$100，幫您預留一組可以嗎？😊<br><br>— 專屬顧問 小王</div>
+    <textarea class="msg-edit" id="msgEdit">🌿 Hi 佳婷～
+您收藏的植物系擴香瓶和北歐沙發套今天都有現貨喔！
+本週滿 NT$888 現折 NT$100，幫您預留一組可以嗎？😊
+
+— 專屬顧問 小王</textarea>
+    <div style="font-size:12px;color:#64748B;margin-bottom:12px">發送時間：<strong>立即發送</strong> 或選擇排程</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+      <button class="btn btn-outline" style="font-size:12px" onclick="showToast('排程設定開啟','info')">📅 排程發送</button>
+      <span style="font-size:12px;color:#64748B">建議：週末傍晚 17:00–19:00</span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closePushModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmSend()">確認發送 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Manual Boost Modal ── -->
+<div class="overlay" id="boostOverlay" onclick="if(event.target===this)closeBoostModal()">
+  <div class="modal">
+    <div class="modal-h">🚀 設定 Manual Boost<button class="modal-close" onclick="closeBoostModal()">✕</button></div>
+    <div style="font-size:13px;color:#64748B;margin-bottom:16px">為 <strong id="boostName"></strong> 手動加分，提升推進名單排名。<br>Boost 值將在 <strong>7 天後</strong>自動歸零，避免長期污染權重。</div>
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px">Boost 強度</div>
+    <div class="boost-row">
+      <input type="range" id="boostSlider" min="0" max="1" step="0.05" value="0" oninput="updateBoostLabel()">
+      <span id="boostLabel" style="font-size:18px;font-weight:800;color:#4F46E5;width:40px;text-align:right">0.00</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#94A3B8;margin-bottom:14px"><span>無加成</span><span>低</span><span>中</span><span>高</span><span>最強</span></div>
+    <div id="boostPreview" style="background:#EEF2FF;border-radius:8px;padding:12px;font-size:13px;color:#3730A3;margin-bottom:16px">加入 Boost 後排名：<strong>#3</strong>（分數 0.667 → 0.667）</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeBoostModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmBoost()">套用 Boost</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ──
+const customers = [
+  {id:1, name:"木村光希", nameEn:"Kōki", emoji:"🧑", id_no:"BU200010", level:"VIP", lifecycle:"高價值", days:2, tags:["VIP","包款愛好者","新品首購"], returnScore:0.89, churnRisk:22, clv:128000, rank:1, rankScore:0.891},
+  {id:2, name:"Jenny Lin", nameEn:"Jenny", emoji:"👩", id_no:"CB-00089234", level:"VIP", lifecycle:"高價值", days:5, tags:["VIP","微霧光偏好","試妝預約"], returnScore:0.82, churnRisk:18, clv:95000, rank:2, rankScore:0.823},
+  {id:3, name:"陳佳婷", nameEn:"CHEN CHIA-TING", emoji:"👩", id_no:"CB-00124581", level:"銀牌", lifecycle:"熟客", days:24, tags:["熟客","家居愛好者","⚠ 沉睡風險"], returnScore:0.67, churnRisk:73, clv:68400, rank:3, rankScore:0.667},
+  {id:4, name:"Mina Chen", nameEn:"Mina", emoji:"🙋", id_no:"CB-00201047", level:"金牌", lifecycle:"熟客", days:8, tags:["金卡","長夾收藏中","Misty Rose"], returnScore:0.75, churnRisk:35, clv:72000, rank:4, rankScore:0.751},
+  {id:5, name:"Ken Wang", nameEn:"Ken", emoji:"👨", id_no:"CB-00156723", level:"一般", lifecycle:"成長期", days:12, tags:["週末活躍","Q系列","啞光黑"], returnScore:0.61, churnRisk:41, clv:38000, rank:5, rankScore:0.613},
+  {id:6, name:"Emma Wu", nameEn:"Emma", emoji:"🧑", id_no:"CB-00198001", level:"銀牌", lifecycle:"熟客", days:15, tags:["銀卡","週期補貨","粉底#2.0Y"], returnScore:0.58, churnRisk:55, clv:52000, rank:6, rankScore:0.582},
+  {id:7, name:"Leanne Ho", nameEn:"Leanne", emoji:"👩", id_no:"CB-00234891", level:"一般", lifecycle:"成長期", days:7, tags:["成長期","Q系列詢問","新品高點擊"], returnScore:0.55, churnRisk:30, clv:21000, rank:7, rankScore:0.551},
+  {id:8, name:"Charles Lu", nameEn:"Charles", emoji:"👨", id_no:"CB-00278432", level:"一般", lifecycle:"成長期", days:19, tags:["住附近","運動鞋+包","啞光黑"], returnScore:0.48, churnRisk:62, clv:28000, rank:8, rankScore:0.482},
+];
+
+const addedToList = new Set();
+let currentSort = 'rank';
+
+function lifecyclePill(lc) {
+  const map = {'高價值':'#DBEAFE,#1D4ED8','熟客':'#EDE9FE,#6D28D9','成長期':'#D1FAE5,#065F46','新客':'#F1F5F9,#475569'};
+  const [bg,col] = (map[lc]||'#F1F5F9,#475569').split(',');
+  return `<span class="lc-pill" style="background:${bg};color:${col}">${lc}</span>`;
+}
+function riskColor(r){return r>=60?'#EF4444':r>=40?'#F59E0B':'#10B981'}
+function daysClass(d){return d>=20?'d-warn':d>=10?'d-mid':'d-ok'}
+function levelColor(lv){const m={'VIP':'#FEF9C3,#854D0E','金牌':'#FEF9C3,#854D0E','銀牌':'#F3F4F6,#374151','一般':'#F1F5F9,#475569'};return (m[lv]||'#F1F5F9,#475569').split(',')}
+function tagColors(tag) {
+  if(tag.includes('VIP')||tag.includes('金')||tag.includes('銀'))return'tx-b';
+  if(tag.includes('⚠')||tag.includes('風險'))return'tx-r';
+  if(tag.includes('收藏')||tag.includes('詢問')||tag.includes('意圖'))return'tx-p';
+  if(tag.includes('週末')||tag.includes('高點擊')||tag.includes('住附近'))return'tx-g';
+  return'tx-gr';
+}
+
+function renderList(){
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const lcF = document.getElementById('fltLifecycle').value;
+  const riskF = document.getElementById('fltRisk').value;
+  const lvlF = document.getElementById('fltLevel').value;
+  const sortBy = document.getElementById('sortBy').value;
+
+  let data = customers.filter(c => {
+    if(q && !c.name.toLowerCase().includes(q) && !c.nameEn.toLowerCase().includes(q) && !c.tags.join(' ').toLowerCase().includes(q)) return false;
+    if(lcF && c.lifecycle !== lcF) return false;
+    if(riskF){if(riskF.includes('0–39')&&c.churnRisk>=40)return false;if(riskF.includes('40–59')&&(c.churnRisk<40||c.churnRisk>=60))return false;if(riskF.includes('60–100')&&c.churnRisk<60)return false;}
+    if(lvlF && c.level !== lvlF) return false;
+    return true;
+  });
+
+  data.sort((a,b)=>{
+    if(sortBy==='rank')return a.rank-b.rank;
+    if(sortBy==='churn')return b.churnRisk-a.churnRisk;
+    if(sortBy==='clv')return b.clv-a.clv;
+    if(sortBy==='days')return a.days-b.days;
+    if(sortBy==='return')return b.returnScore-a.returnScore;
+    return 0;
+  });
+
+  document.getElementById('custCount').textContent = `${data.length} 位`;
+  const body = document.getElementById('custTableBody');
+  body.innerHTML = data.map((c,i) => {
+    const rankClass = c.rank===1?'r1':c.rank===2?'r2':c.rank===3?'r3':'rn';
+    const [lvBg,lvCol] = levelColor(c.level);
+    const inList = addedToList.has(c.id);
+    return `
+    <div class="cust-row" onclick="showProfile(${c.id})">
+      <div><div class="rank-badge ${rankClass}">#${c.rank}</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="row-av">${c.emoji}</div>
+        <div class="row-info">
+          <div class="row-name">${c.name}</div>
+          <div class="row-id">${c.id_no} · <span style="background:${lvBg};color:${lvCol};padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700">${c.level}</span></div>
+          <div class="row-tags">${c.tags.slice(0,2).map(t=>`<span class="tag-xs ${tagColors(t)}">${t}</span>`).join('')}</div>
+        </div>
+      </div>
+      <div>${lifecyclePill(c.lifecycle)}</div>
+      <div class="days-col ${daysClass(c.days)}">${c.days} 天前</div>
+      <div class="score-col">
+        <div class="score-num" style="color:#4F46E5">${c.returnScore.toFixed(2)}</div>
+        <div class="mini-bar"><div class="mini-fill" style="width:${c.returnScore*100}%;background:#4F46E5"></div></div>
+      </div>
+      <div class="risk-col" style="color:${riskColor(c.churnRisk)}">${c.churnRisk}</div>
+      <div class="clv-col">NT$${(c.clv/1000).toFixed(0)}K</div>
+      <div class="act-col" onclick="event.stopPropagation()">
+        <button class="act-btn" style="background:#E0F2FE;color:#0284C7" title="發送 Line" onclick="openPushModalFor('${c.name}')">✉</button>
+        <button class="act-btn ${inList?'':''}' style="background:${inList?'#D1FAE5':'#F1F5F9'};color:${inList?'#065F46':'#64748B'}" title="加入推進名單" onclick="toggleList(${c.id}, this)">${inList?'✓':'＋'}</button>
+        <button class="act-btn" style="background:#EDE9FE;color:#7C3AED" title="設定 Boost" onclick="openBoostModal('${c.name}')">🚀</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setSortBy(field){
+  document.getElementById('sortBy').value = field;
+  renderList();
+}
+
+function toggleList(id, btn){
+  if(addedToList.has(id)){
+    addedToList.delete(id);
+    btn.textContent = '＋';
+    btn.style.background='#F1F5F9'; btn.style.color='#64748B';
+    showToast(`已從推進名單移除`,'info');
+  } else {
+    addedToList.add(id);
+    btn.textContent = '✓';
+    btn.style.background='#D1FAE5'; btn.style.color='#065F46';
+    showToast(`✓ 已加入推進名單`,'ok');
+  }
+}
+
+// ── Navigation ──
+function showListView(){
+  document.getElementById('listView').style.display='block';
+  document.getElementById('profileView').style.display='none';
+  document.getElementById('breadcrumb').innerHTML=`<span class="bc-link" onclick="showListView()">顧客列表</span>`;
+  document.getElementById('nav-customers').classList.add('active');
+  renderList();
+}
+
+function showProfile(id){
+  const c = customers.find(x=>x.id===id);
+  document.getElementById('listView').style.display='none';
+  document.getElementById('profileView').style.display='block';
+  document.getElementById('breadcrumb').innerHTML=`<span class="bc-link" onclick="showListView()">顧客列表</span> › <span style="color:#1E293B">${c.name}</span>`;
+
+  // Update header dynamically
+  const [lvBg,lvCol] = levelColor(c.level);
+  const inList = addedToList.has(c.id);
+  document.getElementById('profileHeader').innerHTML=`
+    <div class="avatar">${c.emoji}</div>
+    <div>
+      <div class="cust-name">${c.name}</div>
+      <div class="cust-meta">會員編號 ${c.id_no} &nbsp;·&nbsp; 加入 2021年3月 &nbsp;·&nbsp; 台北市 &nbsp;·&nbsp; Line 偏好渠道</div>
+      <div class="tags">
+        ${c.tags.map(t=>`<span class="tag t-b">${t}</span>`).join('')}
+        <span class="tag" style="background:${lvBg};color:${lvCol}">${c.level}</span>
+      </div>
+    </div>
+    <div class="cust-stats">
+      <div class="cust-stat"><div class="cust-stat-lbl">距上次消費</div><div class="cust-stat-val dn">${c.days} 天</div></div>
+      <div class="cust-stat"><div class="cust-stat-lbl">生命週期</div><div class="cust-stat-val" style="color:#2563EB">${c.lifecycle}</div></div>
+      <div class="cust-stat"><div class="cust-stat-lbl">推進排名</div><div class="cust-stat-val" style="color:#F59E0B">#${c.rank}</div></div>
+    </div>
+    <div class="cust-actions">
+      <button class="action-btn ab-line" onclick="openPushModalFor('${c.name}')">✉ Line 推播</button>
+      <button class="action-btn ab-boost" onclick="openBoostModal('${c.name}')">🚀 Manual Boost</button>
+      <button class="action-btn ab-list${inList?' added':''}" id="profileListBtn" onclick="toggleProfileList(${c.id})">
+        ${inList?'✓ 已在名單':'＋ 加入推進名單'}
+      </button>
+    </div>`;
+
+  // Update KPIs
+  document.getElementById('profileKpi').innerHTML=`
+    <div class="kpi"><div class="kpi-lbl"><div class="dot" style="background:#2563EB"></div>預估終身價值 CLV</div><div class="kpi-val" style="color:#2563EB">NT$${Math.round(c.clv/1000)}K</div><div class="kpi-sub">未來 12 個月 &nbsp;<span class="up">↑ 12%</span></div></div>
+    <div class="kpi"><div class="kpi-lbl"><div class="dot" style="background:#7C3AED"></div>RFM 綜合分數</div><div class="kpi-val" style="color:#7C3AED">4.1 <span style="font-size:14px;color:#94A3B8;font-weight:400">/ 5</span></div><div class="kpi-sub">R:3 · F:4 · M:5 &nbsp;<span class="warn">⚠ R 衰退中</span></div></div>
+    <div class="kpi"><div class="kpi-lbl"><div class="dot" style="background:#10B981"></div>平均回購週期</div><div class="kpi-val" style="color:#10B981">18 <span style="font-size:14px;color:#94A3B8;font-weight:400">天</span></div><div class="kpi-sub">已超出 6 天 &nbsp;<span class="warn">⚠ 留意</span></div></div>
+    <div class="kpi"><div class="kpi-lbl"><div class="dot" style="background:#F59E0B"></div>流失風險</div><div class="kpi-val" style="color:${riskColor(c.churnRisk)}">${c.churnRisk} <span style="font-size:14px;color:#94A3B8;font-weight:400">/ 100</span></div><div class="kpi-sub">高風險 &nbsp;<span class="dn">需立即行動</span></div></div>`;
+}
+
+function toggleProfileList(id){
+  const btn = document.getElementById('profileListBtn');
+  if(addedToList.has(id)){
+    addedToList.delete(id);
+    btn.textContent='＋ 加入推進名單';
+    btn.classList.remove('added');
+    showToast('已從推進名單移除','info');
+  } else {
+    addedToList.add(id);
+    btn.textContent='✓ 已在名單';
+    btn.classList.add('added');
+    showToast('✓ 已加入推進名單','ok');
+  }
+}
+
+// ── Modals ──
+let pushTarget = '陳佳婷';
+function openPushModal(){openPushModalFor('陳佳婷')}
+function openPushModalFor(name){
+  pushTarget = name;
+  document.getElementById('pushOverlay').classList.add('open');
+}
+function closePushModal(){document.getElementById('pushOverlay').classList.remove('open')}
+function confirmSend(){
+  closePushModal();
+  showToast(`✅ Line 訊息已發送給 ${pushTarget}`,'ok');
+}
+
+function openBoostModal(name){
+  document.getElementById('boostName').textContent = name;
+  document.getElementById('boostSlider').value = 0;
+  updateBoostLabel();
+  document.getElementById('boostOverlay').classList.add('open');
+}
+function closeBoostModal(){document.getElementById('boostOverlay').classList.remove('open')}
+function updateBoostLabel(){
+  const val = parseFloat(document.getElementById('boostSlider').value);
+  document.getElementById('boostLabel').textContent = val.toFixed(2);
+  const base = 0.667;
+  const newScore = Math.min(base + val*0.3, 1.0);
+  const newRank = val > 0.4 ? '#1' : val > 0.2 ? '#2' : '#3';
+  document.getElementById('boostPreview').innerHTML = `加入 Boost 後排名：<strong>${newRank}</strong>（分數 ${base.toFixed(3)} → <strong>${newScore.toFixed(3)}</strong>）`;
+}
+function confirmBoost(){
+  const val = parseFloat(document.getElementById('boostSlider').value);
+  closeBoostModal();
+  if(val > 0) showToast(`🚀 Manual Boost ${val.toFixed(2)} 已套用，將於 7 天後自動歸零`,'ok');
+  else showToast('Boost 未設定（值為 0）','info');
+}
+
+// ── Toast ──
+function showToast(msg, type='info'){
+  const el = document.createElement('div');
+  el.className = `toast-item${type==='ok'?' toast-ok':type==='warn'?' toast-warn':''}`;
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(()=>{el.style.animation='slideIn .3s ease reverse';setTimeout(()=>el.remove(),280)}, 2800);
+}
+
+// ── Init ──
+renderList();
+</script>
+</body>
+</html>
