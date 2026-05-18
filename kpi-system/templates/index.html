@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDD KPI 系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    /* 純 CSS，不依賴 @apply，確保所有環境都能正確渲染 */
+    .sidebar-item { display:flex; align-items:center; gap:0.75rem; padding:0.625rem 1rem; border-radius:0.5rem; color:#cbd5e1; cursor:pointer; font-size:0.875rem; transition:all 150ms; user-select:none; }
+    .sidebar-item:hover { background:#334155; color:#fff; }
+    .sidebar-item.active { background:#4f46e5; color:#fff; }
+    .card { background:#fff; border-radius:1rem; box-shadow:0 1px 3px rgba(0,0,0,.07); border:1px solid #f1f5f9; padding:1.25rem; }
+    .badge-planned { background:#dbeafe; color:#1d4ed8; font-size:.7rem; padding:0 0.4rem; border-radius:9999px; display:inline-block; }
+    .badge-key     { background:#fef3c7; color:#b45309; font-size:.7rem; padding:0 0.4rem; border-radius:9999px; display:inline-block; }
+    .badge-scopeout{ background:#f1f5f9; color:#94a3b8; font-size:.7rem; padding:0 0.4rem; border-radius:9999px; display:inline-block; text-decoration:line-through; }
+    .badge-done    { background:#dcfce7; color:#15803d; font-size:.7rem; padding:0 0.4rem; border-radius:9999px; display:inline-block; }
+    .badge-pending { background:#fef9c3; color:#a16207; font-size:.7rem; padding:0 0.4rem; border-radius:9999px; display:inline-block; }
+    .badge-delayed { background:#fee2e2; color:#b91c1c; font-size:.7rem; padding:0 0.4rem; border-radius:9999px; display:inline-block; }
+    .input { display:block; width:100%; border-radius:0.5rem; border:1px solid #e2e8f0; padding:0.5rem 0.75rem; font-size:0.875rem; outline:none; box-sizing:border-box; }
+    .input:focus { border-color:#6366f1; box-shadow:0 0 0 2px rgba(99,102,241,.2); }
+    .btn-primary   { background:#4f46e5; color:#fff; padding:0.5rem 1rem; border-radius:0.5rem; font-size:0.875rem; font-weight:500; cursor:pointer; border:none; transition:background 150ms; }
+    .btn-primary:hover { background:#4338ca; }
+    .btn-secondary { background:#f1f5f9; color:#374151; padding:0.5rem 1rem; border-radius:0.5rem; font-size:0.875rem; font-weight:500; cursor:pointer; border:none; transition:background 150ms; }
+    .btn-secondary:hover { background:#e2e8f0; }
+    .btn-danger    { background:#fef2f2; color:#dc2626; padding:0.375rem 0.75rem; border-radius:0.5rem; font-size:0.75rem; font-weight:500; cursor:pointer; border:none; transition:background 150ms; }
+    .btn-danger:hover { background:#fee2e2; }
+    .table-th { background:#f8fafc; font-size:.7rem; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; padding:0.5rem 0.75rem; text-align:left; font-weight:600; }
+    .table-td { padding:0.625rem 0.75rem; font-size:0.875rem; border-top:1px solid #f8fafc; }
+    .tab { padding:0.5rem 1rem; font-size:0.875rem; font-weight:500; border-radius:0.5rem; cursor:pointer; transition:all 150ms; }
+    .tab.active { background:#4f46e5; color:#fff; }
+    .tab:not(.active) { color:#475569; }
+    .tab:not(.active):hover { background:#f1f5f9; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+<div id="app" class="flex h-screen overflow-hidden">
+
+  <!-- Sidebar -->
+  <aside class="w-56 bg-slate-900 flex flex-col flex-shrink-0">
+    <div class="px-5 py-5 border-b border-slate-700">
+      <div class="text-white font-bold text-base">📊 PDD KPI 系統</div>
+      <div class="text-slate-400 text-xs mt-0.5">產品發展部 2026</div>
+    </div>
+    <nav class="flex-1 p-3 space-y-1">
+      <div class="sidebar-item" :class="{active: page==='dashboard'}" @click="page='dashboard'">
+        <span>🏠</span> 總覽儀表板
+      </div>
+      <div class="sidebar-item" :class="{active: page==='milestone'}" @click="page='milestone'">
+        <span>🗓</span> 里程碑追蹤
+      </div>
+      <div class="sidebar-item" :class="{active: page==='weekly'}" @click="page='weekly'">
+        <span>📝</span> 週進度記錄
+      </div>
+      <div class="sidebar-item" :class="{active: page==='performance'}" @click="page='performance'">
+        <span>🏆</span> 績效評估
+      </div>
+      <div class="sidebar-item" :class="{active: page==='admin'}" @click="page='admin'">
+        <span>⚙️</span> 管理設定
+      </div>
+    </nav>
+    <div class="p-3 border-t border-slate-700 text-xs text-slate-500 text-center">v1.0 · Flask + SQLite</div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 overflow-auto">
+    <!-- Dashboard -->
+    <div v-if="page==='dashboard'" class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-xl font-bold text-slate-800">總覽儀表板</h1>
+          <p class="text-sm text-slate-500 mt-0.5">2026 產品發展部 KPI 即時狀態</p>
+        </div>
+        <div class="text-sm text-slate-400">{{ today }}</div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-4 gap-4 mb-6">
+        <div class="card">
+          <div class="text-2xl font-bold text-indigo-600">{{ dashboardStats.totalMilestones }}</div>
+          <div class="text-sm text-slate-500 mt-1">總里程碑數</div>
+          <div class="mt-2 h-1.5 bg-slate-100 rounded-full">
+            <div class="h-1.5 bg-indigo-500 rounded-full" :style="{width: dashboardStats.milestoneRate + '%'}"></div>
+          </div>
+          <div class="text-xs text-slate-400 mt-1">完成率 {{ dashboardStats.milestoneRate }}%</div>
+        </div>
+        <div class="card">
+          <div class="text-2xl font-bold text-green-600">{{ dashboardStats.doneMilestones }}</div>
+          <div class="text-sm text-slate-500 mt-1">已完成里程碑</div>
+          <div class="text-xs text-green-500 mt-2">✅ 本季進度良好</div>
+        </div>
+        <div class="card">
+          <div class="text-2xl font-bold text-amber-600">{{ dashboardStats.keyMilestones }}</div>
+          <div class="text-sm text-slate-500 mt-1">關鍵里程碑</div>
+          <div class="text-xs text-amber-500 mt-2">👑 {{ dashboardStats.keyDone }} 已達成</div>
+        </div>
+        <div class="card">
+          <div class="text-2xl font-bold text-red-500">{{ dashboardStats.blockerCount }}</div>
+          <div class="text-sm text-slate-500 mt-1">本週關卡數</div>
+          <div class="text-xs text-red-400 mt-2">⚠️ 需要關注</div>
+        </div>
+      </div>
+
+      <!-- Two columns -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <!-- Product line progress -->
+        <div class="card">
+          <h2 class="font-semibold text-slate-700 mb-4">各產品線里程碑進度</h2>
+          <div v-for="s in dashboard.milestone_stats" :key="s.product_name" class="mb-3">
+            <div class="flex items-center justify-between text-sm mb-1">
+              <span class="font-medium">{{ s.product_icon }} {{ s.product_name }}</span>
+              <span class="text-slate-500">{{ s.done }}/{{ s.total }}</span>
+            </div>
+            <div class="h-2 bg-slate-100 rounded-full">
+              <div class="h-2 rounded-full transition-all"
+                   :class="progressColor(s.done/s.total)"
+                   :style="{width: (s.total > 0 ? s.done/s.total*100 : 0) + '%'}"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Team performance by product line -->
+        <div class="card">
+          <h2 class="font-semibold text-slate-700 mb-4">團隊績效概況 (2026)</h2>
+          <div v-if="!dashboard.performance_by_product?.length" class="text-sm text-slate-400 text-center py-4">尚無績效資料</div>
+
+          <div v-for="group in dashboard.performance_by_product" :key="group.product_id ?? 'other'"
+               class="mb-3 border border-slate-100 rounded-xl overflow-hidden">
+            <!-- Product line header row -->
+            <div class="flex items-center gap-3 px-3 py-2.5 bg-slate-50 cursor-pointer select-none"
+                 @click="togglePerfGroup(group.product_id ?? 'other')">
+              <span class="text-base">{{ group.product_icon }}</span>
+              <span class="font-medium text-sm text-slate-700 flex-1">{{ group.product_name }}</span>
+              <div class="flex items-center gap-2">
+                <div class="w-20 h-1.5 bg-slate-200 rounded-full">
+                  <div class="h-1.5 rounded-full transition-all"
+                       :class="scoreBarColor(group.avg_score)"
+                       :style="{width: group.avg_score ? group.avg_score/4*100+'%' : '0%'}"></div>
+                </div>
+                <span class="text-xs font-bold w-8 text-right"
+                      :class="group.avg_score >= 3 ? 'text-green-600' : 'text-slate-400'">
+                  {{ group.avg_score ? group.avg_score.toFixed(2) : '-' }}
+                </span>
+                <span class="text-slate-400 text-xs">{{ expandedPerfGroups.has(group.product_id ?? 'other') ? '▲' : '▼' }}</span>
+              </div>
+            </div>
+
+            <!-- Expanded: individual members -->
+            <div v-if="expandedPerfGroups.has(group.product_id ?? 'other')"
+                 class="divide-y divide-slate-50">
+              <div v-for="m in group.members" :key="m.member_id"
+                   class="flex items-center gap-3 px-4 py-2 hover:bg-slate-50 cursor-pointer"
+                   @click="page='performance'">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                     :class="roleColor(m.role)">{{ m.name.charAt(0) }}</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium">{{ m.name }}</span>
+                    <span class="text-xs text-slate-400">{{ m.role }}</span>
+                    <span class="text-xs text-slate-300">Q{{ m.quarter }}</span>
+                  </div>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <div class="w-24 h-1 bg-slate-100 rounded-full">
+                      <div class="h-1 rounded-full"
+                           :class="scoreBarColor(m.final_score)"
+                           :style="{width: m.final_score ? m.final_score/4*100+'%' : '0%'}"></div>
+                    </div>
+                    <span class="text-xs text-slate-500">
+                      P1 {{ m.part1_total ? m.part1_total.toFixed(1) : '-' }} ·
+                      P2 {{ m.part2_total ? m.part2_total.toFixed(1) : '-' }}
+                    </span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-sm font-bold"
+                        :class="m.final_score >= 3 ? 'text-green-600' : 'text-slate-400'">
+                    {{ m.final_score ? m.final_score.toFixed(2) : '-' }}
+                  </span>
+                  <span class="text-xs px-1.5 py-0.5 rounded" :class="statusBadge(m.status)">
+                    {{ statusLabel(m.status) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming milestones & Blockers -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="card">
+          <h2 class="font-semibold text-slate-700 mb-3">即將到來的里程碑</h2>
+          <div v-for="m in dashboard.upcoming_milestones?.slice(0,6)" :key="m.id" class="flex items-start gap-2 mb-2 text-sm">
+            <span class="text-slate-400 text-xs w-12 shrink-0 mt-0.5">{{ m.month }}月</span>
+            <span class="shrink-0">{{ m.product_icon }}</span>
+            <span class="flex-1">{{ m.title }}</span>
+            <span :class="'badge-'+m.type" class="shrink-0">{{ typeLabel(m.type) }}</span>
+          </div>
+          <div v-if="!dashboard.upcoming_milestones?.length" class="text-sm text-slate-400">近期無待辦里程碑</div>
+        </div>
+        <div class="card">
+          <h2 class="font-semibold text-slate-700 mb-3">近期關卡 / Blockers</h2>
+          <div v-for="b in dashboard.recent_blockers" :key="b.record_date+b.event_name" class="mb-3 pb-3 border-b border-slate-50 last:border-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs text-slate-400">{{ b.record_date }}</span>
+              <span class="text-xs font-medium text-slate-600">{{ b.owner_name }}</span>
+              <span class="text-xs text-slate-400">· {{ b.product_name }}</span>
+            </div>
+            <div class="text-sm text-slate-700 font-medium">{{ b.event_name }}</div>
+            <div class="text-xs text-red-600 mt-0.5">⚠️ {{ b.blockers }}</div>
+          </div>
+          <div v-if="!dashboard.recent_blockers?.length" class="text-sm text-slate-400">無近期關卡</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Milestone Tracker -->
+    <div v-if="page==='milestone'" class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-xl font-bold text-slate-800">里程碑追蹤</h1>
+          <p class="text-sm text-slate-500 mt-0.5">2026 年度產品線里程碑矩陣</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <span class="badge-planned">✅ 計畫</span>
+            <span class="badge-key">👑 關鍵</span>
+            <span class="badge-scopeout">❌ Scope Out</span>
+            <span class="badge-done">完成</span>
+            <span class="badge-pending">待辦</span>
+          </div>
+          <button class="btn-primary" @click="showMilestoneForm=true">+ 新增里程碑</button>
+        </div>
+      </div>
+
+      <!-- Matrix table -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[900px]">
+            <thead>
+              <tr>
+                <th class="table-th w-36 sticky left-0 bg-slate-50 z-10">產品線</th>
+                <th v-for="m in 12" :key="m" class="table-th text-center w-24"
+                    :class="m === currentMonth ? 'bg-indigo-50 text-indigo-600' : ''">
+                  {{ m }}月
+                  <span v-if="m === currentMonth" class="text-indigo-400">◉</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="product in products" :key="product.id" class="hover:bg-slate-50/50">
+                <td class="table-td sticky left-0 bg-white font-medium text-slate-700 border-r border-slate-100">
+                  {{ product.icon }} {{ product.name }}
+                </td>
+                <td v-for="m in 12" :key="m" class="table-td align-top p-1.5"
+                    :class="m === currentMonth ? 'bg-indigo-50/30' : ''">
+                  <div v-for="ms in getMilestones(product.id, m)" :key="ms.id"
+                       class="mb-1 p-1.5 rounded text-xs cursor-pointer hover:opacity-80 transition-opacity"
+                       :class="milestoneClass(ms)"
+                       @click="openMilestoneEdit(ms)">
+                    <div class="font-medium leading-tight">{{ ms.title }}</div>
+                    <div class="mt-0.5 flex items-center gap-1 flex-wrap">
+                      <span :class="'badge-'+ms.status" class="text-[10px]">{{ statusLabel2(ms.status) }}</span>
+                      <span v-if="getLinkedEpic(ms.id)" class="text-[10px] font-mono text-indigo-500 bg-indigo-50 px-1 rounded">
+                        🎫 {{ getLinkedEpic(ms.id).issue_key }}
+                      </span>
+                    </div>
+                    <div v-if="getLinkedEpic(ms.id)" class="mt-1">
+                      <div class="flex items-center gap-1">
+                        <div class="flex-1 h-1 bg-white/60 rounded-full">
+                          <div class="h-1 bg-indigo-400 rounded-full"
+                               :style="{width: epicProgress(getLinkedEpic(ms.id)) + '%'}"></div>
+                        </div>
+                        <span class="text-[10px] opacity-70">{{ epicProgress(getLinkedEpic(ms.id)) }}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="getMilestones(product.id, m).length === 0"
+                       class="h-8 rounded border border-dashed border-slate-200 cursor-pointer hover:border-indigo-300 flex items-center justify-center text-slate-300 hover:text-indigo-400 text-xs transition-colors"
+                       @click="quickAdd(product.id, m)">+</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Add Milestone Modal -->
+      <div v-if="showMilestoneForm || editingMilestone" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-[480px]">
+          <h3 class="font-bold text-slate-800 mb-4">{{ editingMilestone ? '編輯里程碑' : '新增里程碑' }}</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">產品線</label>
+              <select v-model="milestoneForm.product_id" class="input">
+                <option v-for="p in products" :key="p.id" :value="p.id">{{ p.icon }} {{ p.name }}</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">月份</label>
+                <select v-model="milestoneForm.month" class="input">
+                  <option v-for="m in 12" :key="m" :value="m">{{ m }}月</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">類型</label>
+                <select v-model="milestoneForm.type" class="input">
+                  <option value="planned">✅ 計畫交付</option>
+                  <option value="key">👑 關鍵里程碑</option>
+                  <option value="scopeout">❌ Scope Out</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">里程碑標題</label>
+              <input v-model="milestoneForm.title" class="input" placeholder="例：v4.1 正式上線" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">狀態</label>
+              <select v-model="milestoneForm.status" class="input">
+                <option value="pending">待辦</option>
+                <option value="done">完成</option>
+                <option value="delayed">延遲</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">備註</label>
+              <textarea v-model="milestoneForm.note" class="input" rows="2" placeholder="補充說明（選填）"></textarea>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn-primary flex-1" @click="saveMilestone">{{ editingMilestone ? '儲存變更' : '新增' }}</button>
+            <button v-if="editingMilestone" class="btn-danger" @click="deleteMilestone(editingMilestone.id)">刪除</button>
+            <button class="btn-secondary" @click="closeMilestoneForm">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weekly Records -->
+    <div v-if="page==='weekly'" class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-xl font-bold text-slate-800">週進度記錄</h1>
+          <p class="text-sm text-slate-500 mt-0.5">工作推進事件、關卡與交付物追蹤</p>
+        </div>
+        <button class="btn-primary" @click="openWeeklyForm()">+ 新增記錄</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="flex gap-3 mb-4">
+        <select v-model="weeklyFilter.owner_id" class="input w-36" @change="loadWeekly">
+          <option value="">所有成員</option>
+          <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
+        </select>
+        <select v-model="weeklyFilter.product_id" class="input w-44" @change="loadWeekly">
+          <option value="">所有產品線</option>
+          <option v-for="p in products" :key="p.id" :value="p.id">{{ p.icon }} {{ p.name }}</option>
+        </select>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <table class="w-full">
+          <thead>
+            <tr>
+              <th class="table-th">日期</th>
+              <th class="table-th">成員</th>
+              <th class="table-th">產品線</th>
+              <th class="table-th">事件名稱</th>
+              <th class="table-th">工作摘要</th>
+              <th class="table-th">關卡</th>
+              <th class="table-th">階段</th>
+              <th class="table-th w-16"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in weeklyRecords" :key="r.id" class="hover:bg-slate-50">
+              <td class="table-td text-slate-500 text-xs">{{ r.record_date }}</td>
+              <td class="table-td">
+                <div class="flex items-center gap-1.5">
+                  <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                       :class="roleColor(r.owner_role)">{{ r.owner_name?.charAt(0) }}</div>
+                  <span class="text-sm">{{ r.owner_name }}</span>
+                </div>
+              </td>
+              <td class="table-td text-sm">{{ r.product_icon }} {{ r.product_name }}</td>
+              <td class="table-td font-medium text-sm">{{ r.event_name || '-' }}</td>
+              <td class="table-td text-sm max-w-xs">
+                <div class="truncate text-slate-600">{{ r.work_log }}</div>
+              </td>
+              <td class="table-td">
+                <div v-if="r.blockers" class="text-xs text-red-600 max-w-[140px] truncate">⚠️ {{ r.blockers }}</div>
+                <span v-else class="text-xs text-slate-300">-</span>
+              </td>
+              <td class="table-td">
+                <span :class="stageBadge(r.stage)" class="text-xs px-2 py-0.5 rounded-full font-medium">{{ r.stage }}</span>
+              </td>
+              <td class="table-td">
+                <button class="text-slate-400 hover:text-indigo-600 text-xs" @click="openWeeklyForm(r)">編輯</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="!weeklyRecords.length" class="text-center py-12 text-slate-400">尚無記錄</div>
+      </div>
+
+      <!-- Weekly Form Modal -->
+      <div v-if="showWeeklyForm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-[560px] max-h-[90vh] overflow-y-auto">
+          <h3 class="font-bold text-slate-800 mb-4">{{ editingWeekly ? '編輯記錄' : '新增週進度記錄' }}</h3>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">日期</label>
+                <input v-model="weeklyForm.record_date" type="date" class="input" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">負責人</label>
+                <select v-model="weeklyForm.owner_id" class="input">
+                  <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }} ({{ m.role }})</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">產品線</label>
+                <select v-model="weeklyForm.product_id" class="input">
+                  <option v-for="p in products" :key="p.id" :value="p.id">{{ p.icon }} {{ p.name }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">階段</label>
+                <select v-model="weeklyForm.stage" class="input">
+                  <option value="成果">成果（交付）</option>
+                  <option value="過程">過程（推動）</option>
+                  <option value="沉澱">沉澱（知識）</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">事件名稱</label>
+              <input v-model="weeklyForm.event_name" class="input" placeholder="精簡標題，如：v4.1 效能優化完成" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">本週工作記錄</label>
+              <textarea v-model="weeklyForm.work_log" class="input" rows="3" placeholder="描述本週推進的工作內容..."></textarea>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">關卡 / Blockers</label>
+              <textarea v-model="weeklyForm.blockers" class="input" rows="2" placeholder="目前遇到的卡點（選填）"></textarea>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">下一步處理方式</label>
+              <textarea v-model="weeklyForm.next_steps" class="input" rows="2" placeholder="下一步行動計畫（選填）"></textarea>
+            </div>
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">交付物連結</label>
+              <input v-model="weeklyForm.deliverable_url" class="input" placeholder="https://..." />
+            </div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn-primary flex-1" @click="saveWeekly">{{ editingWeekly ? '儲存變更' : '新增記錄' }}</button>
+            <button v-if="editingWeekly" class="btn-danger" @click="deleteWeekly(editingWeekly.id)">刪除</button>
+            <button class="btn-secondary" @click="showWeeklyForm=false">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance Evaluation -->
+    <div v-if="page==='performance'" class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-xl font-bold text-slate-800">績效評估</h1>
+          <p class="text-sm text-slate-500 mt-0.5">個人 KPI 自評、主管審核與分數計算</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <select v-model="perfFilter.quarter" class="input w-28" @change="loadEvaluations">
+            <option value="">所有季度</option>
+            <option value="1">Q1</option>
+            <option value="2">Q2</option>
+            <option value="3">Q3</option>
+            <option value="4">Q4</option>
+          </select>
+          <button class="btn-primary" @click="showNewEvalForm=true">+ 新建評估</button>
+        </div>
+      </div>
+
+      <!-- Evaluation list -->
+      <div v-if="!selectedEval" class="space-y-3">
+        <div v-for="e in evaluations" :key="e.id"
+             class="card hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer"
+             @click="openEvalDetail(e)">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
+                   :class="roleColor(e.member_role)">{{ e.member_name.charAt(0) }}</div>
+              <div>
+                <div class="font-semibold text-slate-800">{{ e.member_name }}</div>
+                <div class="text-sm text-slate-500">{{ e.member_role }} · {{ e.year }} Q{{ e.quarter }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="text-center">
+                <div class="text-xs text-slate-400 mb-1">第一部分</div>
+                <div class="font-bold text-slate-700">{{ e.part1_total ? e.part1_total.toFixed(2) : '-' }}<span class="text-xs text-slate-400">/4</span></div>
+              </div>
+              <div class="text-center">
+                <div class="text-xs text-slate-400 mb-1">第二部分</div>
+                <div class="font-bold text-slate-700">{{ e.part2_total ? e.part2_total.toFixed(2) : '-' }}<span class="text-xs text-slate-400">/4</span></div>
+              </div>
+              <div class="text-center bg-indigo-50 rounded-xl px-4 py-2">
+                <div class="text-xs text-indigo-500 mb-1">綜合得分</div>
+                <div class="text-2xl font-bold" :class="e.final_score >= 3 ? 'text-indigo-600' : 'text-slate-500'">
+                  {{ e.final_score ? e.final_score.toFixed(2) : '-' }}
+                </div>
+              </div>
+              <span :class="statusBadge(e.status)" class="text-xs px-3 py-1.5 rounded-full font-medium">
+                {{ statusLabel(e.status) }}
+              </span>
+            </div>
+          </div>
+          <!-- Score bar -->
+          <div class="mt-3 h-1.5 bg-slate-100 rounded-full">
+            <div class="h-1.5 rounded-full transition-all"
+                 :class="scoreBarColor(e.final_score)"
+                 :style="{width: (e.final_score ? e.final_score/4*100 : 0)+'%'}"></div>
+          </div>
+        </div>
+        <div v-if="!evaluations.length" class="card text-center py-12 text-slate-400">尚無評估資料，請點擊「新建評估」</div>
+      </div>
+
+      <!-- Evaluation Detail -->
+      <div v-if="selectedEval">
+        <div class="flex items-center gap-3 mb-4">
+          <button class="btn-secondary text-xs" @click="selectedEval=null">← 返回列表</button>
+          <h2 class="font-bold text-slate-800">{{ selectedEval.member_name }} - {{ selectedEval.year }} Q{{ selectedEval.quarter }} 績效評估</h2>
+          <span :class="statusBadge(selectedEval.status)" class="text-xs px-2 py-1 rounded-full">{{ statusLabel(selectedEval.status) }}</span>
+          <div class="ml-auto flex gap-2">
+            <button v-if="selectedEval.status==='draft'" class="btn-primary text-xs"
+                    @click="submitEval(selectedEval.id)">提交評估</button>
+            <button v-if="selectedEval.status==='submitted'" class="btn-primary text-xs"
+                    @click="reviewEval(selectedEval.id)">完成審核</button>
+          </div>
+        </div>
+
+        <!-- Score summary -->
+        <div class="grid grid-cols-3 gap-4 mb-5">
+          <div class="card text-center">
+            <div class="text-xs text-slate-500 mb-1">第一部分（基本指標）× 80%</div>
+            <div class="text-3xl font-bold text-slate-800">{{ selectedEval.part1_total?.toFixed(2) || '-' }}</div>
+            <div class="text-xs text-slate-400">/4.00</div>
+          </div>
+          <div class="card text-center">
+            <div class="text-xs text-slate-500 mb-1">第二部分（核心價值）× 20%</div>
+            <div class="text-3xl font-bold text-slate-800">{{ selectedEval.part2_total?.toFixed(2) || '-' }}</div>
+            <div class="text-xs text-slate-400">/4.00</div>
+          </div>
+          <div class="card text-center bg-indigo-50 border-indigo-200">
+            <div class="text-xs text-indigo-500 mb-1">綜合得分（P1×80%+P2×20%）</div>
+            <div class="text-4xl font-bold text-indigo-600">{{ selectedEval.final_score?.toFixed(2) || '-' }}</div>
+            <div class="text-xs text-indigo-400">/4.00</div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-4">
+          <div class="tab" :class="{active: evalTab===1}" @click="evalTab=1">第一部分：基本指標</div>
+          <div class="tab" :class="{active: evalTab===2}" @click="evalTab=2">第二部分：核心價值</div>
+        </div>
+
+        <!-- Items table -->
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="table-th w-20">面向</th>
+                <th class="table-th">子指標</th>
+                <th v-if="evalTab===1" class="table-th w-10 text-center">權重</th>
+                <th class="table-th w-20 text-center">1分</th>
+                <th class="table-th w-20 text-center">2分</th>
+                <th class="table-th w-20 text-center">3分</th>
+                <th class="table-th w-20 text-center">4分</th>
+                <th class="table-th w-16 text-center">自評</th>
+                <th class="table-th w-16 text-center">初評</th>
+                <th class="table-th w-16 text-center">複評</th>
+                <th class="table-th">佐證說明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in evalItemsByPart" :key="item.id" class="hover:bg-slate-50">
+                <td class="table-td">
+                  <span :class="dimensionBadge(item.dimension)" class="text-xs px-2 py-0.5 rounded-full">{{ item.dimension }}</span>
+                </td>
+                <td class="table-td font-medium text-sm">{{ item.sub_indicator }}</td>
+                <td v-if="evalTab===1" class="table-td text-center text-xs text-slate-500">{{ item.weight }}%</td>
+                <td class="table-td text-xs text-slate-500 max-w-[80px]"><div class="truncate" :title="item.criteria_1">{{ item.criteria_1 }}</div></td>
+                <td class="table-td text-xs text-slate-500 max-w-[80px]"><div class="truncate" :title="item.criteria_2">{{ item.criteria_2 }}</div></td>
+                <td class="table-td text-xs text-slate-500 max-w-[80px]"><div class="truncate" :title="item.criteria_3">{{ item.criteria_3 }}</div></td>
+                <td class="table-td text-xs text-slate-500 max-w-[80px]"><div class="truncate" :title="item.criteria_4">{{ item.criteria_4 }}</div></td>
+                <td class="table-td text-center">
+                  <select v-model.number="item.self_score" class="w-14 text-center rounded border border-slate-200 text-sm py-0.5" @change="saveItemScore(item)">
+                    <option value="">-</option>
+                    <option v-for="s in [1,2,3,4]" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </td>
+                <td class="table-td text-center">
+                  <select v-model.number="item.first_review" class="w-14 text-center rounded border border-slate-200 text-sm py-0.5" @change="saveItemScore(item)">
+                    <option value="">-</option>
+                    <option v-for="s in [1,2,3,4]" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </td>
+                <td class="table-td text-center">
+                  <select v-model.number="item.second_review" class="w-14 text-center rounded border border-slate-200 text-sm py-0.5" @change="saveItemScore(item)">
+                    <option value="">-</option>
+                    <option v-for="s in [1,2,3,4]" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                </td>
+                <td class="table-td">
+                  <input v-model="item.evidence" class="w-full text-xs rounded border border-slate-200 px-2 py-1" placeholder="佐證說明..."
+                         @blur="saveItemScore(item)" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- New Eval Modal -->
+      <div v-if="showNewEvalForm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-[400px]">
+          <h3 class="font-bold text-slate-800 mb-4">新建績效評估</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-500 mb-1 block">評估成員</label>
+              <select v-model="newEvalForm.member_id" class="input">
+                <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }} ({{ m.role }})</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">年度</label>
+                <input v-model.number="newEvalForm.year" type="number" class="input" value="2026" />
+              </div>
+              <div>
+                <label class="text-xs text-slate-500 mb-1 block">季度</label>
+                <select v-model.number="newEvalForm.quarter" class="input">
+                  <option value="1">Q1</option>
+                  <option value="2">Q2</option>
+                  <option value="3">Q3</option>
+                  <option value="4">Q4</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn-primary flex-1" @click="createEvaluation">建立</button>
+            <button class="btn-secondary" @click="showNewEvalForm=false">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin -->
+    <div v-if="page==='admin'" class="p-6">
+      <h1 class="text-xl font-bold text-slate-800 mb-6">管理設定</h1>
+      <div class="grid grid-cols-2 gap-5">
+        <!-- Members -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-slate-700">團隊成員</h2>
+            <button class="btn-primary text-xs" @click="showAddMember=true">+ 新增</button>
+          </div>
+          <div v-for="m in members" :key="m.id" class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm" :class="roleColor(m.role)">{{ m.name.charAt(0) }}</div>
+            <div class="flex-1">
+              <div class="font-medium text-sm">{{ m.name }}</div>
+              <div class="text-xs text-slate-400">{{ m.role }}</div>
+            </div>
+          </div>
+          <div v-if="showAddMember" class="mt-3 pt-3 border-t border-slate-100 space-y-2">
+            <input v-model="newMember.name" class="input" placeholder="姓名" />
+            <select v-model="newMember.role" class="input">
+              <option value="PM">PM</option>
+              <option value="PD">PD</option>
+              <option value="FE">FE</option>
+              <option value="BE">BE</option>
+              <option value="APM">APM</option>
+            </select>
+            <div class="flex gap-2">
+              <button class="btn-primary flex-1 text-xs" @click="addMember">新增</button>
+              <button class="btn-secondary text-xs" @click="showAddMember=false">取消</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-slate-700">產品線</h2>
+            <button class="btn-primary text-xs" @click="showAddProduct=true">+ 新增</button>
+          </div>
+          <div v-for="p in products" :key="p.id" class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+            <span class="text-xl">{{ p.icon }}</span>
+            <div class="flex-1">
+              <div class="font-medium text-sm">{{ p.name }}</div>
+              <div class="text-xs text-slate-400">{{ p.category }}</div>
+            </div>
+          </div>
+          <div v-if="showAddProduct" class="mt-3 pt-3 border-t border-slate-100 space-y-2">
+            <input v-model="newProduct.name" class="input" placeholder="產品線名稱" />
+            <input v-model="newProduct.icon" class="input" placeholder="圖示 (emoji)" />
+            <input v-model="newProduct.category" class="input" placeholder="分類" />
+            <div class="flex gap-2">
+              <button class="btn-primary flex-1 text-xs" @click="addProduct">新增</button>
+              <button class="btn-secondary text-xs" @click="showAddProduct=false">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jira Import -->
+      <div class="mt-5">
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="font-semibold text-slate-700">🎫 Jira CSV 匯入</h2>
+              <p class="text-xs text-slate-400 mt-0.5">Jira → Issues → 匯出 → CSV（所有欄位）→ 上傳此處</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button v-if="jiraStats.total_issues > 0" class="btn-danger text-xs" @click="clearJira">清除所有票</button>
+            </div>
+          </div>
+
+          <!-- Upload zone -->
+          <div class="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-indigo-300 transition-colors"
+               @dragover.prevent @drop.prevent="handleJiraDrop">
+            <div class="text-3xl mb-2">📂</div>
+            <div class="text-sm text-slate-600 mb-1">拖曳 CSV 到這裡，或</div>
+            <label class="btn-primary cursor-pointer inline-block">
+              選擇檔案
+              <input type="file" accept=".csv" class="hidden" @change="handleJiraFile" />
+            </label>
+          </div>
+
+          <!-- Import result -->
+          <div v-if="jiraImportResult" class="mt-3 p-3 rounded-lg text-sm"
+               :class="jiraImportResult.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'">
+            <span v-if="jiraImportResult.ok">
+              ✅ 匯入完成：新增 {{ jiraImportResult.inserted }} 筆、更新 {{ jiraImportResult.updated }} 筆、略過 {{ jiraImportResult.skipped }} 筆
+            </span>
+            <span v-else>❌ {{ jiraImportResult.error }}</span>
+          </div>
+
+          <!-- Stats after import -->
+          <div v-if="jiraStats.total_issues > 0" class="mt-4">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-sm font-medium text-slate-700">已匯入 {{ jiraStats.total_issues }} 張票</span>
+            </div>
+
+            <!-- By type -->
+            <div class="grid grid-cols-4 gap-2 mb-4">
+              <div v-for="t in jiraStats.by_type" :key="t.issue_type"
+                   class="bg-slate-50 rounded-lg p-3 text-center">
+                <div class="text-lg font-bold text-slate-700">{{ t.total }}</div>
+                <div class="text-xs text-slate-500">{{ t.issue_type }}</div>
+                <div class="text-xs text-green-600">{{ t.done }} 完成</div>
+                <div v-if="t.total_hours > 0" class="text-xs text-slate-400">{{ t.total_hours }}h</div>
+              </div>
+            </div>
+
+            <!-- Epics with progress -->
+            <div v-if="jiraStats.epics_with_progress?.length">
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-2">Epic 進度</div>
+              <div v-for="e in jiraStats.epics_with_progress" :key="e.issue_key"
+                   class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                <span class="text-xs font-mono text-indigo-500 w-20 shrink-0">{{ e.issue_key }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-medium truncate">{{ e.summary }}</div>
+                  <div class="flex items-center gap-2 mt-0.5">
+                    <div class="flex-1 h-1.5 bg-slate-100 rounded-full">
+                      <div class="h-1.5 bg-indigo-500 rounded-full"
+                           :style="{width: e.story_count > 0 ? (e.story_done/e.story_count*100)+'%' : '0%'}"></div>
+                    </div>
+                    <span class="text-xs text-slate-400">{{ e.story_done }}/{{ e.story_count }} Stories</span>
+                  </div>
+                </div>
+                <span :class="jiraStatusClass(e.status)" class="text-xs px-2 py-0.5 rounded-full shrink-0">{{ e.status }}</span>
+                <span v-if="e.due_date" class="text-xs text-slate-400 shrink-0">⏰ {{ e.due_date?.slice(0,10) }}</span>
+                <span v-if="e.hours_spent > 0" class="text-xs text-slate-400 shrink-0">{{ e.hours_spent }}h</span>
+              </div>
+            </div>
+
+            <!-- Blocked tickets -->
+            <div v-if="jiraStats.blocked?.length" class="mt-4">
+              <div class="text-xs font-semibold text-red-500 uppercase mb-2">⚠️ 阻塞中的票</div>
+              <div v-for="b in jiraStats.blocked" :key="b.issue_key"
+                   class="flex items-center gap-2 py-1.5 text-sm">
+                <span class="font-mono text-red-500 text-xs">{{ b.issue_key }}</span>
+                <span class="flex-1 truncate">{{ b.summary }}</span>
+                <span class="text-xs text-slate-400">{{ b.assignee }}</span>
+                <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">{{ b.issue_type }}</span>
+              </div>
+            </div>
+
+            <!-- By component -->
+            <div v-if="jiraStats.by_component?.length" class="mt-4">
+              <div class="text-xs font-semibold text-slate-500 uppercase mb-2">各產品線工時</div>
+              <div v-for="c in jiraStats.by_component" :key="c.component"
+                   class="flex items-center gap-3 mb-2">
+                <div class="w-28 text-xs text-slate-600 truncate shrink-0">{{ c.component }}</div>
+                <div class="flex-1 h-2 bg-slate-100 rounded-full">
+                  <div class="h-2 bg-cyan-500 rounded-full"
+                       :style="{width: jiraStats.by_component[0]?.total > 0 ? (c.total/jiraStats.by_component[0].total*100)+'%' : '0%'}"></div>
+                </div>
+                <span class="text-xs text-slate-500 w-16 text-right">{{ c.total }} 票 / {{ c.hours }}h</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Guide -->
+          <div class="mt-4 bg-slate-50 rounded-xl p-4 text-xs text-slate-500 space-y-1">
+            <div class="font-semibold text-slate-600 mb-2">📋 Jira 匯出步驟</div>
+            <div>1. Jira 專案頁 → <b>Issues</b> → <b>View all issues</b></div>
+            <div>2. 右上角 <b>Export</b> → <b>Export CSV (all fields)</b></div>
+            <div>3. 下載後直接上傳此處，系統自動對應欄位</div>
+            <div class="mt-2 text-slate-400">支援 Epic / Story / Sub-task / Bug，Epic Name 會自動對應到現有里程碑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+createApp({
+  setup() {
+    const page = ref('dashboard');
+    const today = new Date().toLocaleDateString('zh-Hant-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+    const currentMonth = new Date().getMonth() + 1;
+
+    // Data
+    const dashboard = ref({});
+    const expandedPerfGroups = ref(new Set());
+    function togglePerfGroup(key) {
+      if (expandedPerfGroups.value.has(key)) expandedPerfGroups.value.delete(key);
+      else expandedPerfGroups.value.add(key);
+      // Trigger reactivity for Set
+      expandedPerfGroups.value = new Set(expandedPerfGroups.value);
+    }
+    const members = ref([]);
+    const products = ref([]);
+    const milestones = ref([]);
+    const weeklyRecords = ref([]);
+    const evaluations = ref([]);
+
+    // Filters
+    const weeklyFilter = reactive({ owner_id: '', product_id: '' });
+    const perfFilter = reactive({ quarter: '' });
+
+    // Forms
+    const showMilestoneForm = ref(false);
+    const editingMilestone = ref(null);
+    const milestoneForm = reactive({ product_id: '', month: new Date().getMonth()+1, title: '', type: 'planned', status: 'pending', note: '' });
+
+    const showWeeklyForm = ref(false);
+    const editingWeekly = ref(null);
+    const weeklyForm = reactive({ record_date: today_iso(), owner_id: '', product_id: '', stage: '成果', event_name: '', work_log: '', blockers: '', next_steps: '', deliverable_url: '' });
+
+    const selectedEval = ref(null);
+    const evalTab = ref(1);
+    const showNewEvalForm = ref(false);
+    const newEvalForm = reactive({ member_id: '', year: 2026, quarter: 2 });
+
+    const showAddMember = ref(false);
+    const newMember = reactive({ name: '', role: 'PM' });
+    const showAddProduct = ref(false);
+    const newProduct = reactive({ name: '', icon: '⭐', category: '' });
+
+    function today_iso() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    const API = '';
+
+    async function api(path, opts={}) {
+      const r = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts
+      });
+      return r.json();
+    }
+
+    async function loadDashboard() { dashboard.value = await api('/api/dashboard'); }
+    async function loadMembers() { members.value = await api('/api/members'); }
+    async function loadProducts() { products.value = await api('/api/products'); }
+    async function loadMilestones() { milestones.value = await api('/api/milestones?year=2026'); }
+    async function loadWeekly() {
+      const params = new URLSearchParams();
+      if (weeklyFilter.owner_id) params.set('owner_id', weeklyFilter.owner_id);
+      if (weeklyFilter.product_id) params.set('product_id', weeklyFilter.product_id);
+      weeklyRecords.value = await api('/api/weekly?' + params);
+    }
+    async function loadEvaluations() {
+      const params = new URLSearchParams({ year: 2026 });
+      if (perfFilter.quarter) params.set('quarter', perfFilter.quarter);
+      evaluations.value = await api('/api/evaluations?' + params);
+    }
+
+    // Milestone helpers
+    function getMilestones(productId, month) {
+      return milestones.value.filter(m => m.product_id === productId && m.month === month);
+    }
+    function milestoneClass(ms) {
+      const base = 'border ';
+      if (ms.type === 'scopeout') return base + 'bg-slate-50 border-slate-200 text-slate-400';
+      if (ms.type === 'key') return base + 'bg-amber-50 border-amber-200 text-amber-800';
+      if (ms.status === 'done') return base + 'bg-green-50 border-green-200 text-green-800';
+      if (ms.status === 'delayed') return base + 'bg-red-50 border-red-200 text-red-800';
+      return base + 'bg-blue-50 border-blue-200 text-blue-800';
+    }
+    function typeLabel(t) { return {planned:'計畫',key:'關鍵',scopeout:'Scope Out'}[t]||t; }
+    function statusLabel2(s) { return {pending:'待辦',done:'✓完成',delayed:'延遲'}[s]||s; }
+
+    function quickAdd(productId, month) {
+      Object.assign(milestoneForm, { product_id: productId, month, title: '', type: 'planned', status: 'pending', note: '' });
+      showMilestoneForm.value = true;
+    }
+    function openMilestoneEdit(ms) {
+      editingMilestone.value = ms;
+      Object.assign(milestoneForm, { product_id: ms.product_id, month: ms.month, title: ms.title, type: ms.type, status: ms.status, note: ms.note || '' });
+    }
+    function closeMilestoneForm() { showMilestoneForm.value = false; editingMilestone.value = null; }
+    async function saveMilestone() {
+      if (editingMilestone.value) {
+        await api('/api/milestones/' + editingMilestone.value.id, { method: 'PUT', body: JSON.stringify(milestoneForm) });
+      } else {
+        await api('/api/milestones', { method: 'POST', body: JSON.stringify(milestoneForm) });
+      }
+      closeMilestoneForm();
+      loadMilestones();
+      loadDashboard();
+    }
+    async function deleteMilestone(id) {
+      if (!confirm('確定要刪除此里程碑？')) return;
+      await api('/api/milestones/' + id, { method: 'DELETE' });
+      closeMilestoneForm();
+      loadMilestones();
+      loadDashboard();
+    }
+
+    // Weekly helpers
+    function openWeeklyForm(record=null) {
+      editingWeekly.value = record;
+      if (record) {
+        Object.assign(weeklyForm, { record_date: record.record_date, owner_id: record.owner_id, product_id: record.product_id, stage: record.stage, event_name: record.event_name||'', work_log: record.work_log||'', blockers: record.blockers||'', next_steps: record.next_steps||'', deliverable_url: record.deliverable_url||'' });
+      } else {
+        Object.assign(weeklyForm, { record_date: today_iso(), owner_id: members.value[0]?.id||'', product_id: products.value[0]?.id||'', stage: '成果', event_name: '', work_log: '', blockers: '', next_steps: '', deliverable_url: '' });
+      }
+      showWeeklyForm.value = true;
+    }
+    async function saveWeekly() {
+      if (editingWeekly.value) {
+        await api('/api/weekly/' + editingWeekly.value.id, { method: 'PUT', body: JSON.stringify(weeklyForm) });
+      } else {
+        await api('/api/weekly', { method: 'POST', body: JSON.stringify(weeklyForm) });
+      }
+      showWeeklyForm.value = false;
+      loadWeekly();
+      loadDashboard();
+    }
+    async function deleteWeekly(id) {
+      if (!confirm('確定刪除？')) return;
+      await api('/api/weekly/' + id, { method: 'DELETE' });
+      showWeeklyForm.value = false;
+      loadWeekly();
+    }
+
+    // Performance helpers
+    async function openEvalDetail(e) {
+      selectedEval.value = await api('/api/evaluations/' + e.id);
+      evalTab.value = 1;
+    }
+    const evalItemsByPart = computed(() => {
+      if (!selectedEval.value?.items) return [];
+      return selectedEval.value.items.filter(i => i.part === evalTab.value);
+    });
+    async function saveItemScore(item) {
+      await api('/api/evaluations/' + selectedEval.value.id + '/items', {
+        method: 'POST',
+        body: JSON.stringify([item])
+      });
+      // refresh scores
+      const updated = await api('/api/evaluations/' + selectedEval.value.id);
+      selectedEval.value.part1_total = updated.part1_total;
+      selectedEval.value.part2_total = updated.part2_total;
+      selectedEval.value.final_score = updated.final_score;
+      loadEvaluations();
+    }
+    async function submitEval(id) {
+      await api('/api/evaluations/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status: 'submitted' }) });
+      selectedEval.value.status = 'submitted';
+      loadEvaluations();
+    }
+    async function reviewEval(id) {
+      await api('/api/evaluations/' + id + '/status', { method: 'PUT', body: JSON.stringify({ status: 'reviewed' }) });
+      selectedEval.value.status = 'reviewed';
+      loadEvaluations();
+    }
+    async function createEvaluation() {
+      const res = await api('/api/evaluations', { method: 'POST', body: JSON.stringify(newEvalForm) });
+      showNewEvalForm.value = false;
+      loadEvaluations();
+    }
+
+    // Admin
+    async function addMember() {
+      await api('/api/members', { method: 'POST', body: JSON.stringify(newMember) });
+      newMember.name = ''; showAddMember.value = false;
+      loadMembers();
+    }
+    async function addProduct() {
+      await api('/api/products', { method: 'POST', body: JSON.stringify(newProduct) });
+      newProduct.name = ''; showAddProduct.value = false;
+      loadProducts();
+    }
+
+    // Jira
+    const jiraStats = ref({ total_issues: 0 });
+    const jiraImportResult = ref(null);
+
+    async function loadJiraStats() {
+      jiraStats.value = await api('/api/jira/stats');
+    }
+    async function uploadJiraCSV(file) {
+      jiraImportResult.value = null;
+      const form = new FormData();
+      form.append('file', file);
+      const r = await fetch('/api/jira/import', { method: 'POST', body: form });
+      jiraImportResult.value = await r.json();
+      if (jiraImportResult.value.ok) {
+        await loadJiraStats();
+        await loadMilestones();
+        await loadDashboard();
+      }
+    }
+    function handleJiraFile(e) {
+      const file = e.target.files[0];
+      if (file) uploadJiraCSV(file);
+    }
+    function handleJiraDrop(e) {
+      const file = e.dataTransfer.files[0];
+      if (file) uploadJiraCSV(file);
+    }
+    async function clearJira() {
+      if (!confirm('確定要清除所有 Jira 票？')) return;
+      await api('/api/jira/clear', { method: 'DELETE' });
+      await loadJiraStats();
+      jiraImportResult.value = null;
+    }
+    function jiraStatusClass(s) {
+      if (!s) return 'bg-slate-100 text-slate-500';
+      const lower = s.toLowerCase();
+      if (lower.includes('done') || lower.includes('完成') || lower.includes('closed')) return 'bg-green-100 text-green-700';
+      if (lower.includes('progress') || lower.includes('進行')) return 'bg-blue-100 text-blue-700';
+      if (lower.includes('block') || lower.includes('阻塞')) return 'bg-red-100 text-red-700';
+      return 'bg-slate-100 text-slate-500';
+    }
+    function getLinkedEpic(milestoneId) {
+      const epics = jiraStats.value.epics_with_progress || [];
+      return epics.find(e => e.milestone_id === milestoneId) || null;
+    }
+    function epicProgress(epic) {
+      if (!epic || !epic.story_count) return 0;
+      return Math.round(epic.story_done / epic.story_count * 100);
+    }
+
+    // Dashboard computed
+    const dashboardStats = computed(() => {
+      const stats = dashboard.value.milestone_stats || [];
+      const total = stats.reduce((s, p) => s + p.total, 0);
+      const done = stats.reduce((s, p) => s + p.done, 0);
+      const keyTotal = stats.reduce((s, p) => s + p.key_total, 0);
+      const keyDone = stats.reduce((s, p) => s + p.key_done, 0);
+      const blockers = (dashboard.value.recent_blockers || []).length;
+      return {
+        totalMilestones: total,
+        doneMilestones: done,
+        milestoneRate: total > 0 ? Math.round(done/total*100) : 0,
+        keyMilestones: keyTotal,
+        keyDone: keyDone,
+        blockerCount: blockers,
+      };
+    });
+
+    // Style helpers
+    function progressColor(ratio) {
+      if (ratio >= 0.8) return 'bg-green-500';
+      if (ratio >= 0.5) return 'bg-amber-500';
+      return 'bg-red-400';
+    }
+    function roleColor(role) {
+      return { PM: 'bg-indigo-100 text-indigo-700', PD: 'bg-pink-100 text-pink-700', FE: 'bg-cyan-100 text-cyan-700', BE: 'bg-orange-100 text-orange-700', APM: 'bg-purple-100 text-purple-700' }[role] || 'bg-slate-100 text-slate-700';
+    }
+    function scoreBarColor(score) {
+      if (!score) return 'bg-slate-200';
+      if (score >= 3.5) return 'bg-green-500';
+      if (score >= 3) return 'bg-indigo-500';
+      if (score >= 2) return 'bg-amber-500';
+      return 'bg-red-400';
+    }
+    function statusBadge(s) {
+      return { draft: 'bg-slate-100 text-slate-600', submitted: 'bg-blue-100 text-blue-600', reviewed: 'bg-green-100 text-green-700' }[s] || 'bg-slate-100 text-slate-500';
+    }
+    function statusLabel(s) {
+      return { draft: '草稿', submitted: '已提交', reviewed: '審核完成' }[s] || s;
+    }
+    function stageBadge(s) {
+      return { '成果': 'bg-green-100 text-green-700', '過程': 'bg-blue-100 text-blue-700', '沉澱': 'bg-purple-100 text-purple-700', '其他': 'bg-slate-100 text-slate-600' }[s] || 'bg-slate-100 text-slate-600';
+    }
+    function dimensionBadge(d) {
+      return { '成果': 'bg-green-100 text-green-700', '過程': 'bg-blue-100 text-blue-700', '沉澱': 'bg-purple-100 text-purple-700', '其他': 'bg-slate-100 text-slate-600' }[d] || '';
+    }
+
+    onMounted(async () => {
+      await Promise.all([loadDashboard(), loadMembers(), loadProducts(), loadMilestones(), loadWeekly(), loadEvaluations(), loadJiraStats()]);
+    });
+
+    return {
+      page, today, currentMonth,
+      dashboard, expandedPerfGroups, togglePerfGroup,
+      members, products, milestones, weeklyRecords, evaluations,
+      weeklyFilter, perfFilter,
+      showMilestoneForm, editingMilestone, milestoneForm,
+      showWeeklyForm, editingWeekly, weeklyForm,
+      selectedEval, evalTab, evalItemsByPart, showNewEvalForm, newEvalForm,
+      showAddMember, newMember, showAddProduct, newProduct,
+      jiraStats, jiraImportResult, handleJiraFile, handleJiraDrop, clearJira, jiraStatusClass, getLinkedEpic, epicProgress,
+      dashboardStats,
+      getMilestones, milestoneClass, typeLabel, statusLabel2, quickAdd, openMilestoneEdit, closeMilestoneForm, saveMilestone, deleteMilestone,
+      openWeeklyForm, saveWeekly, deleteWeekly,
+      openEvalDetail, saveItemScore, submitEval, reviewEval, createEvaluation,
+      addMember, addProduct,
+      progressColor, roleColor, scoreBarColor, statusBadge, statusLabel, stageBadge, dimensionBadge,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
