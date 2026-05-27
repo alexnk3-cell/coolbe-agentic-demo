@@ -553,7 +553,6 @@
         </table>
         <div v-if="!weeklyRecords.length" class="text-center py-12 text-slate-400">尚無記錄</div>
       </div>
-      </div><!-- end table view -->
 
       <!-- Weekly Form Modal -->
       <div v-if="showWeeklyForm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
@@ -779,7 +778,8 @@
       </div>
 
       <!-- New Eval Modal -->
-      <div v-if="showNewEvalForm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+      <div v-if="showNewEvalForm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center"
+           @click.self="showNewEvalForm=false">
         <div class="bg-white rounded-2xl shadow-xl p-6 w-[400px]">
           <h3 class="font-bold text-slate-800 mb-4">新建績效評估</h3>
           <div class="space-y-3">
