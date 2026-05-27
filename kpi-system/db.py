@@ -181,6 +181,9 @@ def init_db():
             headline_progress TEXT DEFAULT '',
             headline_blocker TEXT DEFAULT '',
             headline_support TEXT DEFAULT '',
+            sales_expecting TEXT DEFAULT '',
+            sales_trialing TEXT DEFAULT '',
+            sales_negotiating TEXT DEFAULT '',
             updated_at TEXT DEFAULT (datetime('now')),
             UNIQUE(year, month)
         );
@@ -206,9 +209,24 @@ def init_db():
             next_step TEXT DEFAULT '',
             eta TEXT DEFAULT '',
             next_month_objective TEXT DEFAULT '',
+            next_month_ongoing TEXT DEFAULT '',
+            roadmap_note TEXT DEFAULT '',
             UNIQUE(product_id, year, month)
         );
     """)
+
+    # Migrate existing DBs — ignore errors if columns already exist
+    for stmt in [
+        "ALTER TABLE monthly_summaries ADD COLUMN sales_expecting TEXT DEFAULT ''",
+        "ALTER TABLE monthly_summaries ADD COLUMN sales_trialing TEXT DEFAULT ''",
+        "ALTER TABLE monthly_summaries ADD COLUMN sales_negotiating TEXT DEFAULT ''",
+        "ALTER TABLE product_month_status ADD COLUMN next_month_ongoing TEXT DEFAULT ''",
+        "ALTER TABLE product_month_status ADD COLUMN roadmap_note TEXT DEFAULT ''",
+    ]:
+        try:
+            c.execute(stmt)
+        except Exception:
+            pass
 
     c.executescript("""
         CREATE TABLE IF NOT EXISTS jira_issues (

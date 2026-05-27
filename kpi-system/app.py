@@ -790,7 +790,7 @@ def manager_dashboard():
         pstatus = row_to_dict(db.execute(
             "SELECT * FROM product_month_status WHERE product_id=? AND year=? AND month=?",
             (pid, year, month)
-        ).fetchone()) or {"status": "active", "next_step": "", "eta": "", "next_month_objective": ""}
+        ).fetchone()) or {"status": "active", "next_step": "", "eta": "", "next_month_objective": "", "next_month_ongoing": "", "roadmap_note": ""}
 
         owners = [r["name"] for r in db.execute(
             "SELECT name FROM members WHERE primary_product_id=? AND exclude_from_perf=0 ORDER BY id",
@@ -840,6 +840,8 @@ def manager_dashboard():
             "next_step": next_step,
             "eta":     pstatus.get("eta", ""),
             "next_month_objective": next_obj,
+            "next_month_ongoing": pstatus.get("next_month_ongoing", ""),
+            "roadmap_note": pstatus.get("roadmap_note", ""),
             "month_milestones": ms_this,
             "next_milestones":  ms_next,
             "achievements": achievements,
@@ -854,11 +856,17 @@ def manager_dashboard():
         })
 
     done_total = sum(1 for m in all_month_ms if m["status"] == "done")
-    in_prog    = db.execute(
-        "SELECT COUNT(*) FROM weekly_records WHERE strftime('%Y-%m', record_date)=? AND stage='過程'",
-        (f"{year}-{month:02d}",)
-    ).fetchone()[0]
-    paused = sum(1 for p in product_list if p["status"] in ("paused", "cancelled"))
+    in_prog    = sum(1 for p in product_list if p["status"] == "active")
+    paused     = sum(1 for p in product_list if p["status"] in ("paused", "cancelled"))
+
+    # Other / internal records (product_id IS NULL or product_id=4)
+    other_records = rows_to_list(db.execute("""
+        SELECT w.*, m.name as owner_name
+        FROM weekly_records w LEFT JOIN members m ON w.owner_id = m.id
+        WHERE strftime('%Y-%m', w.record_date)=?
+          AND (w.product_id IS NULL OR w.product_id = 4)
+        ORDER BY w.record_date DESC
+    """, (f"{year}-{month:02d}",)).fetchall())
 
     return jsonify({
         "year": year, "month": month,
@@ -872,6 +880,7 @@ def manager_dashboard():
             "paused":   paused,
         },
         "products": product_list,
+        "other_records": other_records,
     })
 
 
@@ -880,15 +889,21 @@ def update_manager_summary():
     d = request.json
     db = get_db()
     db.execute("""
-        INSERT INTO monthly_summaries (year, month, headline_progress, headline_blocker, headline_support, updated_at)
-        VALUES (?,?,?,?,?,datetime('now'))
+        INSERT INTO monthly_summaries
+          (year, month, headline_progress, headline_blocker, headline_support,
+           sales_expecting, sales_trialing, sales_negotiating, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,datetime('now'))
         ON CONFLICT(year, month) DO UPDATE SET
             headline_progress=excluded.headline_progress,
             headline_blocker=excluded.headline_blocker,
             headline_support=excluded.headline_support,
+            sales_expecting=excluded.sales_expecting,
+            sales_trialing=excluded.sales_trialing,
+            sales_negotiating=excluded.sales_negotiating,
             updated_at=datetime('now')
-    """, (d["year"], d["month"], d.get("headline_progress",""),
-          d.get("headline_blocker",""), d.get("headline_support","")))
+    """, (d["year"], d["month"],
+          d.get("headline_progress",""), d.get("headline_blocker",""), d.get("headline_support",""),
+          d.get("sales_expecting",""), d.get("sales_trialing",""), d.get("sales_negotiating","")))
     db.commit()
     return jsonify({"ok": True})
 
@@ -927,16 +942,20 @@ def update_product_status():
     db = get_db()
     db.execute("""
         INSERT INTO product_month_status
-          (product_id, year, month, status, next_step, eta, next_month_objective)
-        VALUES (?,?,?,?,?,?,?)
+          (product_id, year, month, status, next_step, eta,
+           next_month_objective, next_month_ongoing, roadmap_note)
+        VALUES (?,?,?,?,?,?,?,?,?)
         ON CONFLICT(product_id, year, month) DO UPDATE SET
             status=excluded.status,
             next_step=excluded.next_step,
             eta=excluded.eta,
-            next_month_objective=excluded.next_month_objective
+            next_month_objective=excluded.next_month_objective,
+            next_month_ongoing=excluded.next_month_ongoing,
+            roadmap_note=excluded.roadmap_note
     """, (d["product_id"], d["year"], d["month"],
           d.get("status","active"), d.get("next_step",""),
-          d.get("eta",""), d.get("next_month_objective","")))
+          d.get("eta",""), d.get("next_month_objective",""),
+          d.get("next_month_ongoing",""), d.get("roadmap_note","")))
     db.commit()
     return jsonify({"ok": True})
 
