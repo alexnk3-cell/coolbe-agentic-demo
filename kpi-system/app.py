@@ -749,6 +749,198 @@ def monthly_report():
     })
 
 
+# ─── Manager Dashboard ─────────────────────────────────────────────────────────
+
+@app.route("/api/manager")
+def manager_dashboard():
+    year  = request.args.get("year",  2026, type=int)
+    month = request.args.get("month",    5, type=int)
+    db = get_db()
+
+    # 3-line summary
+    summary = row_to_dict(db.execute(
+        "SELECT * FROM monthly_summaries WHERE year=? AND month=?", (year, month)
+    ).fetchone()) or {
+        "headline_progress": "", "headline_blocker": "", "headline_support": "",
+        "year": year, "month": month, "updated_at": None
+    }
+
+    # Asks / Decisions
+    asks = rows_to_list(db.execute(
+        "SELECT * FROM monthly_asks WHERE year=? AND month=? ORDER BY resolved, category, id",
+        (year, month)
+    ).fetchall())
+
+    # Products (skip 內部系統)
+    products = rows_to_list(db.execute(
+        "SELECT * FROM products WHERE id != 4 ORDER BY id"
+    ).fetchall())
+
+    next_month = month + 1 if month < 12 else 1
+    next_year  = year      if month < 12 else year + 1
+
+    all_month_ms = rows_to_list(db.execute(
+        "SELECT * FROM milestones WHERE year=? AND month=?", (year, month)
+    ).fetchall())
+
+    product_list = []
+    for p in products:
+        pid = p["id"]
+
+        pstatus = row_to_dict(db.execute(
+            "SELECT * FROM product_month_status WHERE product_id=? AND year=? AND month=?",
+            (pid, year, month)
+        ).fetchone()) or {"status": "active", "next_step": "", "eta": "", "next_month_objective": ""}
+
+        owners = [r["name"] for r in db.execute(
+            "SELECT name FROM members WHERE primary_product_id=? AND exclude_from_perf=0 ORDER BY id",
+            (pid,)
+        ).fetchall()]
+
+        # Milestones this month
+        ms_this = [m for m in all_month_ms if m["product_id"] == pid]
+
+        # Milestones next month
+        ms_next = rows_to_list(db.execute(
+            "SELECT * FROM milestones WHERE product_id=? AND year=? AND month=?",
+            (pid, next_year, next_month)
+        ).fetchall())
+
+        # Weekly records this month
+        records = rows_to_list(db.execute("""
+            SELECT w.*, m.name as owner_name
+            FROM weekly_records w LEFT JOIN members m ON w.owner_id = m.id
+            WHERE w.product_id=? AND strftime('%Y-%m', w.record_date)=?
+        """, (pid, f"{year}-{month:02d}")).fetchall())
+
+        achievements = [r for r in records if r.get("stage") == "成果"][:3]
+        processes    = [r for r in records if r.get("stage") == "過程"][:5]
+        deposits     = [r for r in records if r.get("stage") == "沉澱"][:3]
+        blockers     = [r for r in records if r.get("blockers")][:2]
+
+        # Derive next_step from first pending milestone if not manually set
+        next_step = pstatus.get("next_step") or ""
+        if not next_step:
+            pending = [m for m in ms_this if m["status"] in ("pending", "delayed")]
+            if pending:
+                next_step = pending[0]["title"]
+
+        # Derive next month objective from ms_next if not manually set
+        next_obj = pstatus.get("next_month_objective") or ""
+        if not next_obj and ms_next:
+            key_ms = [m for m in ms_next if m["type"] == "key"]
+            next_obj = "、".join(m["title"] for m in (key_ms or ms_next)[:2])
+
+        product_list.append({
+            "id":      pid,
+            "name":    p["name"],
+            "icon":    p["icon"],
+            "status":  pstatus.get("status", "active"),
+            "owners":  owners,
+            "next_step": next_step,
+            "eta":     pstatus.get("eta", ""),
+            "next_month_objective": next_obj,
+            "month_milestones": ms_this,
+            "next_milestones":  ms_next,
+            "achievements": achievements,
+            "processes":    processes,
+            "deposits":     deposits,
+            "blockers":     blockers,
+            "roadmap": {
+                "done":    [m for m in ms_this if m["status"] == "done"],
+                "current": [m for m in ms_this if m["status"] in ("pending", "delayed")],
+                "next":    ms_next,
+            },
+        })
+
+    done_total = sum(1 for m in all_month_ms if m["status"] == "done")
+    in_prog    = db.execute(
+        "SELECT COUNT(*) FROM weekly_records WHERE strftime('%Y-%m', record_date)=? AND stage='過程'",
+        (f"{year}-{month:02d}",)
+    ).fetchone()[0]
+    paused = sum(1 for p in product_list if p["status"] in ("paused", "cancelled"))
+
+    return jsonify({
+        "year": year, "month": month,
+        "summary": summary,
+        "asks": asks,
+        "kpi": {
+            "tracking": sum(1 for p in product_list if p["status"] == "active"),
+            "ms_done":  done_total,
+            "ms_total": len(all_month_ms),
+            "in_prog":  in_prog,
+            "paused":   paused,
+        },
+        "products": product_list,
+    })
+
+
+@app.route("/api/manager/summary", methods=["PUT"])
+def update_manager_summary():
+    d = request.json
+    db = get_db()
+    db.execute("""
+        INSERT INTO monthly_summaries (year, month, headline_progress, headline_blocker, headline_support, updated_at)
+        VALUES (?,?,?,?,?,datetime('now'))
+        ON CONFLICT(year, month) DO UPDATE SET
+            headline_progress=excluded.headline_progress,
+            headline_blocker=excluded.headline_blocker,
+            headline_support=excluded.headline_support,
+            updated_at=datetime('now')
+    """, (d["year"], d["month"], d.get("headline_progress",""),
+          d.get("headline_blocker",""), d.get("headline_support","")))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/manager/asks", methods=["POST"])
+def create_manager_ask():
+    d = request.json
+    db = get_db()
+    db.execute(
+        "INSERT INTO monthly_asks (year, month, category, content) VALUES (?,?,?,?)",
+        (d["year"], d["month"], d.get("category","decision"), d["content"])
+    )
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/manager/asks/<int:aid>", methods=["DELETE"])
+def delete_manager_ask(aid):
+    db = get_db()
+    db.execute("DELETE FROM monthly_asks WHERE id=?", (aid,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/manager/asks/<int:aid>/resolve", methods=["PUT"])
+def resolve_manager_ask(aid):
+    db = get_db()
+    db.execute("UPDATE monthly_asks SET resolved=1 WHERE id=?", (aid,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/manager/product-status", methods=["PUT"])
+def update_product_status():
+    d = request.json
+    db = get_db()
+    db.execute("""
+        INSERT INTO product_month_status
+          (product_id, year, month, status, next_step, eta, next_month_objective)
+        VALUES (?,?,?,?,?,?,?)
+        ON CONFLICT(product_id, year, month) DO UPDATE SET
+            status=excluded.status,
+            next_step=excluded.next_step,
+            eta=excluded.eta,
+            next_month_objective=excluded.next_month_objective
+    """, (d["product_id"], d["year"], d["month"],
+          d.get("status","active"), d.get("next_step",""),
+          d.get("eta",""), d.get("next_month_objective","")))
+    db.commit()
+    return jsonify({"ok": True})
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(debug=False, host="0.0.0.0", port=port)

@@ -172,6 +172,44 @@ def init_db():
     conn = get_db()
     c = conn.cursor()
 
+    # Manager dashboard tables
+    c.executescript("""
+        CREATE TABLE IF NOT EXISTS monthly_summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL,
+            headline_progress TEXT DEFAULT '',
+            headline_blocker TEXT DEFAULT '',
+            headline_support TEXT DEFAULT '',
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(year, month)
+        );
+
+        CREATE TABLE IF NOT EXISTS monthly_asks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL,
+            category TEXT DEFAULT 'decision'
+                CHECK(category IN ('decision','support','priority')),
+            content TEXT NOT NULL,
+            resolved INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS product_month_status (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER REFERENCES products(id),
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL,
+            status TEXT DEFAULT 'active'
+                CHECK(status IN ('active','paused','cancelled')),
+            next_step TEXT DEFAULT '',
+            eta TEXT DEFAULT '',
+            next_month_objective TEXT DEFAULT '',
+            UNIQUE(product_id, year, month)
+        );
+    """)
+
     c.executescript("""
         CREATE TABLE IF NOT EXISTS jira_issues (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
