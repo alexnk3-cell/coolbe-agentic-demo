@@ -68,55 +68,84 @@
   <main class="flex-1 overflow-auto">
     <!-- Dashboard -->
     <div v-if="page==='dashboard'" class="p-6">
-      <div class="flex items-center justify-between mb-6">
+      <!-- Monthly Meeting Header -->
+      <div class="flex items-end justify-between mb-6">
         <div>
-          <h1 class="text-xl font-bold text-slate-800">總覽儀表板</h1>
-          <p class="text-sm text-slate-500 mt-0.5">2026 產品發展部 KPI 即時狀態</p>
+          <div class="text-xs text-slate-400 mb-1">Product Development Dept. / {{ new Date().getFullYear() }}.{{ String(new Date().getMonth()+1).padStart(2,'0') }}</div>
+          <h1 class="text-2xl font-bold text-slate-900">PDD {{ new Date().getMonth()+1 }}月 產品月會</h1>
         </div>
         <div class="text-sm text-slate-400">{{ today }}</div>
       </div>
 
-      <!-- KPI Summary Cards -->
+      <!-- Summary Stats (月會格式) -->
       <div class="grid grid-cols-4 gap-4 mb-6">
-        <div class="card">
-          <div class="text-2xl font-bold text-indigo-600">{{ dashboardStats.totalMilestones }}</div>
-          <div class="text-sm text-slate-500 mt-1">總里程碑數</div>
+        <div class="card text-center py-4">
+          <div class="text-3xl font-bold text-indigo-600 mb-1">{{ monthlyReport.summary?.main_products ?? 2 }}</div>
+          <div class="text-sm font-medium text-slate-600">主產品線</div>
+          <div class="text-xs text-slate-400 mt-1">LINE WORKS / IMPA SaaS + Image Search</div>
+        </div>
+        <div class="card text-center py-4">
+          <div class="text-3xl font-bold text-slate-500 mb-1">{{ monthlyReport.summary?.other_count ?? 0 }}</div>
+          <div class="text-sm font-medium text-slate-600">其他事項</div>
           <div class="mt-2 h-1.5 bg-slate-100 rounded-full">
-            <div class="h-1.5 bg-indigo-500 rounded-full" :style="{width: dashboardStats.milestoneRate + '%'}"></div>
+            <div class="h-1.5 bg-slate-400 rounded-full" :style="{width: dashboardStats.milestoneRate + '%'}"></div>
           </div>
-          <div class="text-xs text-slate-400 mt-1">完成率 {{ dashboardStats.milestoneRate }}%</div>
+          <div class="text-xs text-slate-400 mt-1">里程碑完成率 {{ dashboardStats.milestoneRate }}%</div>
         </div>
-        <div class="card">
-          <div class="text-2xl font-bold text-green-600">{{ dashboardStats.doneMilestones }}</div>
-          <div class="text-sm text-slate-500 mt-1">已完成里程碑</div>
-          <div class="text-xs text-green-500 mt-2">✅ 本季進度良好</div>
+        <div class="card text-center py-4">
+          <div class="text-3xl font-bold text-green-600 mb-1">{{ monthlyReport.summary?.achievements ?? 0 }}</div>
+          <div class="text-sm font-medium text-slate-600">成果</div>
+          <div class="text-xs text-green-500 mt-2">👑 關鍵 {{ dashboardStats.keyDone }}/{{ dashboardStats.keyMilestones }} 達成</div>
         </div>
-        <div class="card">
-          <div class="text-2xl font-bold text-amber-600">{{ dashboardStats.keyMilestones }}</div>
-          <div class="text-sm text-slate-500 mt-1">關鍵里程碑</div>
-          <div class="text-xs text-amber-500 mt-2">👑 {{ dashboardStats.keyDone }} 已達成</div>
+        <div class="card text-center py-4">
+          <div class="text-3xl font-bold text-purple-600 mb-1">{{ monthlyReport.summary?.deposits ?? 0 }}</div>
+          <div class="text-sm font-medium text-slate-600">沉澱</div>
+          <div class="text-xs text-red-400 mt-2" v-if="dashboardStats.blockerCount > 0">⚠️ {{ dashboardStats.blockerCount }} 個關卡</div>
+          <div class="text-xs text-slate-400 mt-2" v-else>✅ 無阻礙</div>
         </div>
-        <div class="card">
-          <div class="text-2xl font-bold text-red-500">{{ dashboardStats.blockerCount }}</div>
-          <div class="text-sm text-slate-500 mt-1">本週關卡數</div>
-          <div class="text-xs text-red-400 mt-2">⚠️ 需要關注</div>
+      </div>
+
+      <!-- 月度主軸 -->
+      <div class="card mb-6">
+        <h2 class="font-semibold text-slate-700 mb-3 flex items-center gap-2"><span>📌</span> {{ new Date().getMonth()+1 }}月主軸</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <div v-for="axis in monthlyReport.axes" :key="axis.product"
+               class="rounded-xl p-3 bg-indigo-50/60 border border-indigo-100">
+            <div class="font-semibold text-sm text-indigo-700 mb-1">{{ axis.icon }} {{ axis.product }}</div>
+            <div class="text-xs text-slate-600 leading-relaxed">「{{ axis.focus }}」</div>
+          </div>
         </div>
       </div>
 
       <!-- Two columns -->
       <div class="grid grid-cols-2 gap-4 mb-4">
-        <!-- Product line progress -->
+        <!-- Milestone checklist (月會格式) -->
         <div class="card">
-          <h2 class="font-semibold text-slate-700 mb-4">各產品線里程碑進度</h2>
-          <div v-for="s in dashboard.milestone_stats" :key="s.product_name" class="mb-3">
-            <div class="flex items-center justify-between text-sm mb-1">
-              <span class="font-medium">{{ s.product_icon }} {{ s.product_name }}</span>
-              <span class="text-slate-500">{{ s.done }}/{{ s.total }}</span>
+          <h2 class="font-semibold text-slate-700 mb-3 flex items-center gap-2"><span>🗓</span> 本月里程碑對照</h2>
+          <div class="space-y-1">
+            <div v-for="ms in monthlyReport.milestones" :key="ms.id"
+                 class="flex items-center gap-2 p-2 rounded-lg text-sm"
+                 :class="msRowBg(ms.status)">
+              <span class="text-sm shrink-0">{{ msStatusIcon(ms.status) }}</span>
+              <span class="flex-1 text-slate-700 truncate">{{ ms.title }}</span>
+              <span class="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
+                    :class="msStatusBadge(ms.status)">{{ msStatusText(ms.status) }}</span>
             </div>
-            <div class="h-2 bg-slate-100 rounded-full">
-              <div class="h-2 rounded-full transition-all"
-                   :class="progressColor(s.done/s.total)"
-                   :style="{width: (s.total > 0 ? s.done/s.total*100 : 0) + '%'}"></div>
+          </div>
+          <div v-if="!monthlyReport.milestones?.length" class="text-sm text-slate-400 py-2">尚無本月里程碑</div>
+          <!-- 年度進度條 -->
+          <div class="mt-4 pt-3 border-t border-slate-50">
+            <div class="text-xs text-slate-400 mb-2">各產品線年度完成率</div>
+            <div v-for="s in dashboard.milestone_stats" :key="s.product_name" class="mb-2">
+              <div class="flex items-center justify-between text-xs mb-0.5">
+                <span class="text-slate-600">{{ s.product_icon }} {{ s.product_name }}</span>
+                <span class="text-slate-400">{{ s.done }}/{{ s.total }}</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full">
+                <div class="h-1.5 rounded-full transition-all"
+                     :class="progressColor(s.done/s.total)"
+                     :style="{width: (s.total > 0 ? s.done/s.total*100 : 0) + '%'}"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -188,9 +217,60 @@
         </div>
       </div>
 
-      <!-- Upcoming milestones & Blockers -->
+      <!-- Product Line Work Summary (月會格式) -->
+      <div v-for="group in monthlyReport.records_by_product" :key="group.product_name" class="card mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-semibold text-slate-800 flex items-center gap-2">
+            <span>{{ group.icon }}</span> {{ group.product_name }}
+          </h2>
+          <div class="flex items-center gap-2">
+            <span v-for="stage in ['成果','過程','沉澱']" :key="stage"
+                  class="text-xs px-2 py-0.5 rounded-full font-medium"
+                  :class="stageBadge(stage)">
+              {{ stage }} {{ group.records.filter(r => r.stage === stage).length }}
+            </span>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div v-for="stage in ['成果','過程','沉澱']" :key="stage">
+            <div class="text-xs font-semibold mb-2" :class="stageHeaderColor(stage)">{{ stage }}</div>
+            <div v-for="r in group.records.filter(x => x.stage === stage)" :key="r.id"
+                 class="mb-2 text-sm">
+              <div class="flex items-start gap-1">
+                <span class="text-slate-300 shrink-0 mt-0.5">●</span>
+                <div class="min-w-0">
+                  <div class="text-slate-700 leading-snug">{{ r.work_log }}</div>
+                  <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span class="text-xs text-slate-400">{{ r.owner_name }}</span>
+                    <a v-if="r.deliverable_url" :href="r.deliverable_url" target="_blank"
+                       class="text-xs text-indigo-400 hover:underline">↗ 交付物</a>
+                  </div>
+                  <div v-if="r.blockers" class="text-xs text-red-500 mt-0.5">⚠️ {{ r.blockers }}</div>
+                </div>
+              </div>
+            </div>
+            <div v-if="!group.records.filter(x => x.stage === stage).length"
+                 class="text-xs text-slate-300">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other items & Blockers -->
       <div class="grid grid-cols-2 gap-4">
-        <div class="card">
+        <!-- Other items -->
+        <div class="card" v-if="monthlyReport.other_records?.length">
+          <h2 class="font-semibold text-slate-700 mb-3 flex items-center gap-2"><span>📋</span> 其他事項 Support</h2>
+          <div v-for="r in monthlyReport.other_records" :key="r.id"
+               class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
+                 :class="roleColor(r.owner_role)">{{ r.owner_name?.charAt(0) }}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm text-slate-700">{{ r.work_log }}</div>
+              <div class="text-xs text-slate-400 mt-0.5">{{ r.owner_name }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" v-else>
           <h2 class="font-semibold text-slate-700 mb-3">即將到來的里程碑</h2>
           <div v-for="m in dashboard.upcoming_milestones?.slice(0,6)" :key="m.id" class="flex items-start gap-2 mb-2 text-sm">
             <span class="text-slate-400 text-xs w-12 shrink-0 mt-0.5">{{ m.month }}月</span>
@@ -200,9 +280,11 @@
           </div>
           <div v-if="!dashboard.upcoming_milestones?.length" class="text-sm text-slate-400">近期無待辦里程碑</div>
         </div>
+        <!-- Blockers -->
         <div class="card">
           <h2 class="font-semibold text-slate-700 mb-3">近期關卡 / Blockers</h2>
-          <div v-for="b in dashboard.recent_blockers" :key="b.record_date+b.event_name" class="mb-3 pb-3 border-b border-slate-50 last:border-0">
+          <div v-for="b in dashboard.recent_blockers" :key="b.record_date+b.event_name"
+               class="mb-3 pb-3 border-b border-slate-50 last:border-0">
             <div class="flex items-center gap-2 mb-1">
               <span class="text-xs text-slate-400">{{ b.record_date }}</span>
               <span class="text-xs font-medium text-slate-600">{{ b.owner_name }}</span>
@@ -347,7 +429,17 @@
           <h1 class="text-xl font-bold text-slate-800">週進度記錄</h1>
           <p class="text-sm text-slate-500 mt-0.5">工作推進事件、關卡與交付物追蹤</p>
         </div>
-        <button class="btn-primary" @click="openWeeklyForm()">+ 新增記錄</button>
+        <div class="flex items-center gap-2">
+          <div class="flex rounded-lg overflow-hidden border border-slate-200 text-sm">
+            <button class="px-3 py-1.5 transition-colors"
+                    :class="weeklyViewMode==='group' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'"
+                    @click="weeklyViewMode='group'">分組</button>
+            <button class="px-3 py-1.5 transition-colors"
+                    :class="weeklyViewMode==='table' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'"
+                    @click="weeklyViewMode='table'">列表</button>
+          </div>
+          <button class="btn-primary" @click="openWeeklyForm()">+ 新增記錄</button>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -362,8 +454,62 @@
         </select>
       </div>
 
-      <!-- Table -->
-      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <!-- Grouped View (月會分組格式) -->
+      <div v-if="weeklyViewMode==='group'">
+        <div v-for="group in weeklyGrouped" :key="group.product_name" class="card mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-slate-800 flex items-center gap-2">
+              <span>{{ group.icon }}</span> {{ group.product_name }}
+            </h3>
+            <div class="flex items-center gap-2">
+              <span v-for="stage in ['成果','過程','沉澱']" :key="stage"
+                    class="text-xs px-2 py-0.5 rounded-full font-medium"
+                    :class="stageBadge(stage)">
+                {{ stage }} {{ group.records.filter(r => r.stage === stage).length }}
+              </span>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div v-for="stage in ['成果','過程','沉澱']" :key="stage">
+              <div class="text-xs font-semibold mb-2" :class="stageHeaderColor(stage)">{{ stage }}</div>
+              <div v-for="r in group.records.filter(x => x.stage === stage)" :key="r.id" class="mb-2 text-sm">
+                <div class="flex items-start gap-1">
+                  <span class="text-slate-300 shrink-0 mt-0.5">●</span>
+                  <div class="min-w-0">
+                    <div class="text-slate-700 leading-snug">{{ r.work_log }}</div>
+                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span class="text-xs text-slate-400">{{ r.owner_name }}</span>
+                      <a v-if="r.deliverable_url" :href="r.deliverable_url" target="_blank"
+                         class="text-xs text-indigo-400 hover:underline">↗ 交付物</a>
+                      <button class="text-xs text-slate-300 hover:text-indigo-400 ml-1" @click="openWeeklyForm(r)">編輯</button>
+                    </div>
+                    <div v-if="r.blockers" class="text-xs text-red-500 mt-0.5">⚠️ {{ r.blockers }}</div>
+                  </div>
+                </div>
+              </div>
+              <div v-if="!group.records.filter(x => x.stage === stage).length"
+                   class="text-xs text-slate-300">-</div>
+            </div>
+          </div>
+        </div>
+        <!-- Other / stage-less -->
+        <div v-if="weeklyOthers.length" class="card mb-4">
+          <h3 class="font-semibold text-slate-700 mb-3">📋 其他事項</h3>
+          <div v-for="r in weeklyOthers" :key="r.id" class="flex items-start gap-2 py-2 border-b border-slate-50 last:border-0">
+            <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
+                 :class="roleColor(r.owner_role)">{{ r.owner_name?.charAt(0) }}</div>
+            <div class="flex-1">
+              <div class="text-sm text-slate-700">{{ r.work_log }}</div>
+              <div class="text-xs text-slate-400">{{ r.owner_name }} · {{ r.record_date }}</div>
+            </div>
+            <button class="text-xs text-slate-300 hover:text-indigo-400" @click="openWeeklyForm(r)">編輯</button>
+          </div>
+        </div>
+        <div v-if="!weeklyRecords.length" class="card text-center py-12 text-slate-400">尚無記錄</div>
+      </div>
+
+      <!-- Table View (原有列表) -->
+      <div v-if="weeklyViewMode==='table'" class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <table class="w-full">
           <thead>
             <tr>
@@ -407,6 +553,7 @@
         </table>
         <div v-if="!weeklyRecords.length" class="text-center py-12 text-slate-400">尚無記錄</div>
       </div>
+      </div><!-- end table view -->
 
       <!-- Weekly Form Modal -->
       <div v-if="showWeeklyForm" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
@@ -1033,6 +1180,50 @@ createApp({
     }
 
     // Jira
+    // Weekly grouped view
+    const weeklyViewMode = ref('group');
+
+    const weeklyGrouped = computed(() => {
+      const OTHER_NAMES = new Set(['其他', '內部系統', null, undefined]);
+      const map = {};
+      for (const r of weeklyRecords.value) {
+        const pname = r.product_name;
+        const stage = r.stage;
+        if (OTHER_NAMES.has(pname) || !pname) continue;
+        if (!map[pname]) map[pname] = { product_name: pname, icon: r.product_icon || '', records: [] };
+        map[pname].records.push(r);
+      }
+      return Object.values(map);
+    });
+
+    const weeklyOthers = computed(() =>
+      weeklyRecords.value.filter(r => !r.product_name || r.product_name === '其他' || r.product_name === '內部系統')
+    );
+
+    // Monthly Report
+    const monthlyReport = ref({});
+    const monthlyReportMonth = ref(new Date().getMonth() + 1);
+
+    async function loadMonthlyReport() {
+      monthlyReport.value = await api(`/api/monthly-report?year=2026&month=${monthlyReportMonth.value}`);
+    }
+
+    function msStatusIcon(s) {
+      return { done: '✅', pending: '🔄', delayed: '⚠️' }[s] || '🔄';
+    }
+    function msStatusText(s) {
+      return { done: '達成', pending: '推進中', delayed: '部分達成' }[s] || s;
+    }
+    function msStatusBadge(s) {
+      return { done: 'bg-green-100 text-green-700', pending: 'bg-blue-100 text-blue-700', delayed: 'bg-amber-100 text-amber-700' }[s] || 'bg-slate-100 text-slate-600';
+    }
+    function msRowBg(s) {
+      return { done: 'bg-green-50', pending: 'bg-slate-50', delayed: 'bg-amber-50' }[s] || 'bg-slate-50';
+    }
+    function stageHeaderColor(s) {
+      return { '成果': 'text-green-600', '過程': 'text-blue-600', '沉澱': 'text-purple-600' }[s] || 'text-slate-500';
+    }
+
     const jiraStats = ref({ total_issues: 0 });
     const jiraImportResult = ref(null);
 
@@ -1130,7 +1321,7 @@ createApp({
     }
 
     onMounted(async () => {
-      await Promise.all([loadDashboard(), loadMembers(), loadProducts(), loadMilestones(), loadWeekly(), loadEvaluations(), loadJiraStats()]);
+      await Promise.all([loadDashboard(), loadMembers(), loadProducts(), loadMilestones(), loadWeekly(), loadEvaluations(), loadJiraStats(), loadMonthlyReport()]);
     });
 
     return {
@@ -1142,6 +1333,9 @@ createApp({
       showWeeklyForm, editingWeekly, weeklyForm,
       selectedEval, evalTab, evalItemsByPart, showNewEvalForm, newEvalForm,
       showAddMember, newMember, showAddProduct, newProduct,
+      weeklyViewMode, weeklyGrouped, weeklyOthers,
+      monthlyReport, monthlyReportMonth, loadMonthlyReport,
+      msStatusIcon, msStatusText, msStatusBadge, msRowBg, stageHeaderColor,
       jiraStats, jiraImportResult, handleJiraFile, handleJiraDrop, clearJira, jiraStatusClass, getLinkedEpic, epicProgress,
       dashboardStats,
       getMilestones, milestoneClass, typeLabel, statusLabel2, quickAdd, openMilestoneEdit, closeMilestoneForm, saveMilestone, deleteMilestone,

@@ -677,6 +677,78 @@ def clear_jira_issues():
     return jsonify({"ok": True})
 
 
+# ─── Monthly Report ────────────────────────────────────────────────────────────
+
+@app.route("/api/monthly-report")
+def monthly_report():
+    year  = request.args.get("year",  2026, type=int)
+    month = request.args.get("month",    5, type=int)
+    db = get_db()
+
+    # Weekly records for the month
+    records = rows_to_list(db.execute("""
+        SELECT w.*, m.name as owner_name, m.role as owner_role,
+               p.name as product_name, p.icon as product_icon, p.id as pid
+        FROM weekly_records w
+        LEFT JOIN members m ON w.owner_id = m.id
+        LEFT JOIN products p ON w.product_id = p.id
+        WHERE strftime('%Y-%m', w.record_date) = ?
+        ORDER BY w.product_id, w.stage, w.owner_id
+    """, (f"{year}-{month:02d}",)).fetchall())
+
+    # Milestones for the month
+    milestones = rows_to_list(db.execute("""
+        SELECT m.*, p.name as product_name, p.icon as product_icon
+        FROM milestones m JOIN products p ON m.product_id = p.id
+        WHERE m.year=? AND m.month=?
+        ORDER BY m.product_id, m.type DESC
+    """, (year, month)).fetchall())
+
+    # Summary counts
+    summary = {"achievements": 0, "processes": 0, "deposits": 0, "other_count": 0}
+    for r in records:
+        s = r.get("stage") or "其他"
+        if s == "成果":   summary["achievements"] += 1
+        elif s == "過程": summary["processes"]    += 1
+        elif s == "沉澱": summary["deposits"]     += 1
+        else:             summary["other_count"]  += 1
+    summary["main_products"] = 2
+
+    # Group records by product (exclude 其他/NULL)
+    OTHER_IDS = {4}  # 內部系統
+    grouped = {}
+    other_records = []
+    for r in records:
+        pid  = r.get("pid") or r.get("product_id")
+        pname = r.get("product_name") or "其他"
+        if pid in OTHER_IDS or not pid or pname == "其他":
+            other_records.append(r)
+        else:
+            if pname not in grouped:
+                grouped[pname] = {"product_name": pname, "icon": r.get("product_icon",""), "records": []}
+            grouped[pname]["records"].append(r)
+
+    # Monthly focus axes (static content matching the reference site)
+    axes = [
+        {"product": "LINE WORKS",
+         "focus": "從內部導入推進到可販售的 SaaS 產品基礎",
+         "icon": "💬"},
+        {"product": "IMPA SaaS / Image Search",
+         "focus": "把平台整理到能 Demo、能交接、能對外說明",
+         "icon": "🏢"},
+    ]
+
+    return jsonify({
+        "year":    year,
+        "month":   month,
+        "summary": summary,
+        "axes":    axes,
+        "milestones": milestones,
+        "records_by_product": list(grouped.values()),
+        "other_records": other_records,
+    })
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(debug=False, host="0.0.0.0", port=port)
