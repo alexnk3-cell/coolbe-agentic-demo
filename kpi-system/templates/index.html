@@ -1235,42 +1235,112 @@
         </div>
       </div>
 
-      <!-- Section 6: LINE WORKS 銷售狀況 -->
+      <!-- Section 6: LINE WORKS 銷售漏斗 -->
       <div class="card mb-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="font-semibold text-slate-700 flex items-center gap-2"><span>💼</span> LINE WORKS 銷售狀況</h2>
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="font-semibold text-slate-700 flex items-center gap-2"><span>💼</span> LINE WORKS 銷售 Pipeline</h2>
+            <div class="text-xs text-slate-400 mt-0.5">總計 {{ salesCounts.negotiating + salesCounts.trialing + salesCounts.expecting }} 家客戶在追蹤中</div>
+          </div>
           <button v-if="!mgrSalesEditing" class="btn-secondary text-xs" @click="startEditSales()">編輯</button>
           <div v-else class="flex gap-2">
             <button class="btn-primary text-xs" @click="saveMgrSummary()">儲存</button>
             <button class="btn-secondary text-xs" @click="mgrSalesEditing=false">取消</button>
           </div>
         </div>
-        <div v-if="!mgrSalesEditing" class="grid grid-cols-3 gap-4">
-          <div class="rounded-xl bg-emerald-50 border border-emerald-100 p-3">
-            <div class="text-xs font-bold text-emerald-700 mb-2">🟢 已購買 / 預計購買</div>
-            <div class="text-sm text-slate-700 whitespace-pre-line">{{ mgrData.summary?.sales_expecting || '—' }}</div>
+
+        <!-- Funnel view -->
+        <div v-if="!mgrSalesEditing" class="flex flex-col items-center">
+
+          <!-- 接洽中 — 最寬 -->
+          <div class="w-full">
+            <div @click="salesExpanded.negotiating = !salesExpanded.negotiating"
+                 class="cursor-pointer select-none bg-amber-50 border border-amber-200 rounded-t-2xl px-5 py-3 flex items-center justify-between hover:bg-amber-100/60 transition-colors">
+              <div class="flex items-center gap-4">
+                <span class="text-4xl font-black text-amber-500">{{ salesCounts.negotiating }}</span>
+                <div>
+                  <div class="text-sm font-bold text-amber-700">接洽中</div>
+                  <div class="text-xs text-slate-400">新 Lead / 已聯絡 / Demo 中</div>
+                </div>
+              </div>
+              <span class="text-xs text-slate-400 font-mono">{{ salesExpanded.negotiating ? '▲' : '▼' }}</span>
+            </div>
+            <div v-show="salesExpanded.negotiating"
+                 class="border-x border-b border-amber-200 bg-amber-50/40 px-4 py-2.5 flex flex-wrap gap-1.5">
+              <span v-for="c in salesCompanies.negotiating" :key="c"
+                    class="text-xs bg-white border border-amber-200 text-slate-600 px-2.5 py-0.5 rounded-full">{{ c }}</span>
+            </div>
           </div>
-          <div class="rounded-xl bg-blue-50 border border-blue-100 p-3">
-            <div class="text-xs font-bold text-blue-700 mb-2">🔵 試用中</div>
-            <div class="text-sm text-slate-700 whitespace-pre-line">{{ mgrData.summary?.sales_trialing || '—' }}</div>
+
+          <!-- 轉換箭頭 -->
+          <div class="flex items-center gap-2 py-1.5 text-xs text-slate-400 w-full justify-center">
+            <div class="flex-1 h-px bg-slate-200"></div>
+            <span>▼ 進入試用</span>
+            <div class="flex-1 h-px bg-slate-200"></div>
           </div>
-          <div class="rounded-xl bg-amber-50 border border-amber-100 p-3">
-            <div class="text-xs font-bold text-amber-700 mb-2">🟡 接洽中</div>
-            <div class="text-sm text-slate-700 whitespace-pre-line">{{ mgrData.summary?.sales_negotiating || '—' }}</div>
+
+          <!-- 試用中 — 中寬 -->
+          <div class="w-4/5">
+            <div @click="salesExpanded.trialing = !salesExpanded.trialing"
+                 class="cursor-pointer select-none bg-blue-50 border border-blue-200 rounded-t-xl px-5 py-3 flex items-center justify-between hover:bg-blue-100/60 transition-colors">
+              <div class="flex items-center gap-4">
+                <span class="text-4xl font-black text-blue-500">{{ salesCounts.trialing }}</span>
+                <div>
+                  <div class="text-sm font-bold text-blue-700">試用中</div>
+                  <div class="text-xs text-slate-400">Trial ongoing</div>
+                </div>
+              </div>
+              <span class="text-xs text-slate-400 font-mono">{{ salesExpanded.trialing ? '▲' : '▼' }}</span>
+            </div>
+            <div v-show="salesExpanded.trialing"
+                 class="border-x border-b border-blue-200 bg-blue-50/40 px-4 py-2.5 flex flex-wrap gap-1.5 rounded-b-xl">
+              <span v-for="c in salesCompanies.trialing" :key="c"
+                    class="text-xs bg-white border border-blue-200 text-slate-600 px-2.5 py-0.5 rounded-full">{{ c }}</span>
+            </div>
           </div>
+
+          <!-- 成交箭頭 -->
+          <div class="flex items-center gap-2 py-1.5 text-xs text-slate-400 w-4/5 justify-center">
+            <div class="flex-1 h-px bg-slate-200"></div>
+            <span>▼ 成交</span>
+            <div class="flex-1 h-px bg-slate-200"></div>
+          </div>
+
+          <!-- 已購買 — 最窄 -->
+          <div class="w-3/5">
+            <div @click="salesExpanded.expecting = !salesExpanded.expecting"
+                 class="cursor-pointer select-none bg-emerald-50 border border-emerald-200 rounded-t-xl px-5 py-3 flex items-center justify-between hover:bg-emerald-100/60 transition-colors">
+              <div class="flex items-center gap-4">
+                <span class="text-4xl font-black text-emerald-600">{{ salesCounts.expecting }}</span>
+                <div>
+                  <div class="text-sm font-bold text-emerald-700">已購買</div>
+                  <div class="text-xs text-slate-400">Purchased</div>
+                </div>
+              </div>
+              <span class="text-xs text-slate-400 font-mono">{{ salesExpanded.expecting ? '▲' : '▼' }}</span>
+            </div>
+            <div v-show="salesExpanded.expecting"
+                 class="border-x border-b border-emerald-200 bg-emerald-50/40 px-4 py-2.5 flex flex-wrap gap-1.5 rounded-b-xl">
+              <span v-for="c in salesCompanies.expecting" :key="c"
+                    class="text-xs bg-white border border-emerald-200 text-slate-600 px-2.5 py-0.5 rounded-full">{{ c }}</span>
+            </div>
+          </div>
+
         </div>
+
+        <!-- Edit mode -->
         <div v-else class="grid grid-cols-3 gap-4">
           <div>
-            <label class="text-xs font-semibold text-emerald-700 block mb-1">🟢 已購買 / 預計購買</label>
-            <textarea v-model="mgrEditingSummary.sales_expecting" class="input text-sm w-full" rows="3" placeholder="每行一家，例：&#10;威合&#10;酷訊搜索"></textarea>
+            <label class="text-xs font-semibold text-amber-700 block mb-1">🟡 接洽中</label>
+            <textarea v-model="mgrEditingSummary.sales_negotiating" class="input text-sm w-full" rows="8" placeholder="每行一家，例：&#10;昕儀工程行&#10;光和貿易股份有限公司"></textarea>
           </div>
           <div>
             <label class="text-xs font-semibold text-blue-700 block mb-1">🔵 試用中</label>
-            <textarea v-model="mgrEditingSummary.sales_trialing" class="input text-sm w-full" rows="3" placeholder="例：&#10;威合&#10;魔犬秋口"></textarea>
+            <textarea v-model="mgrEditingSummary.sales_trialing" class="input text-sm w-full" rows="8" placeholder="每行一家，例：&#10;酷訊搜索股份有限公司&#10;威合股份有限公司"></textarea>
           </div>
           <div>
-            <label class="text-xs font-semibold text-amber-700 block mb-1">🟡 接洽中</label>
-            <textarea v-model="mgrEditingSummary.sales_negotiating" class="input text-sm w-full" rows="3" placeholder="例：&#10;傑思愛德威&#10;昕儀工程行"></textarea>
+            <label class="text-xs font-semibold text-emerald-700 block mb-1">🟢 已購買</label>
+            <textarea v-model="mgrEditingSummary.sales_expecting" class="input text-sm w-full" rows="8" placeholder="每行一家，例：&#10;威合股份有限公司&#10;酷訊搜索股份有限公司"></textarea>
           </div>
         </div>
       </div>
@@ -1728,6 +1798,23 @@ createApp({
     const mgrRoadmapEditing = ref(null);
     const mgrRoadmapNoteDraft = ref('');
     const mgrSalesEditing = ref(false);
+    const salesExpanded = reactive({ negotiating: true, trialing: true, expecting: true });
+
+    const salesCompanies = computed(() => {
+      const parse = s => (s || '').split('\n').map(x => x.trim()).filter(Boolean);
+      const s = mgrData.value.summary || {};
+      return {
+        negotiating: parse(s.sales_negotiating),
+        trialing:    parse(s.sales_trialing),
+        expecting:   parse(s.sales_expecting),
+      };
+    });
+    const salesCounts = computed(() => ({
+      negotiating: salesCompanies.value.negotiating.length,
+      trialing:    salesCompanies.value.trialing.length,
+      expecting:   salesCompanies.value.expecting.length,
+    }));
+
     const drawerEditStatus = ref('active');
     const drawerEditEta = ref('');
     const drawerEditNextStep = ref('');
@@ -1924,7 +2011,8 @@ createApp({
       mgrData, mgrYear, mgrMonth, drawerProduct, mgrStatusFilter,
       mgrSummaryEditing, mgrEditingSummary, showAddAsk, newAskForm,
       mgrObjEditing, mgrObjDraft, mgrRoadmapEditing, mgrRoadmapNoteDraft,
-      mgrSalesEditing, drawerEditStatus, drawerEditEta, drawerEditNextStep,
+      mgrSalesEditing, salesExpanded, salesCompanies, salesCounts,
+      drawerEditStatus, drawerEditEta, drawerEditNextStep,
       mgrFilteredProducts, mgrStatusBadge, mgrStatusLabel,
       loadManagerData, saveMgrSummary, addAsk, deleteAsk, resolveAsk,
       startEditNextObj, saveMgrProductStatus, startEditRoadmapNote, saveRoadmapNote,
