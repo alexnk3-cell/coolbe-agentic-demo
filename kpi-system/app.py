@@ -714,8 +714,8 @@ def monthly_report():
         else:             summary["other_count"]  += 1
     summary["main_products"] = 2
 
-    # Group records by product (exclude 其他/NULL)
-    OTHER_IDS = {4}  # 內部系統
+    # Group records by product (exclude 內部系統/LINE OA SaaS/NULL)
+    OTHER_IDS = {4, 5}
     grouped = {}
     other_records = []
     for r in records:
@@ -771,9 +771,9 @@ def manager_dashboard():
         (year, month)
     ).fetchall())
 
-    # Products (skip 內部系統)
+    # 只顯示三條產品線：Image Search(1), IMPA SaaS(2), LINE WORKS(3)
     products = rows_to_list(db.execute(
-        "SELECT * FROM products WHERE id != 4 ORDER BY id"
+        "SELECT * FROM products WHERE id IN (1,2,3) ORDER BY id"
     ).fetchall())
 
     next_month = month + 1 if month < 12 else 1

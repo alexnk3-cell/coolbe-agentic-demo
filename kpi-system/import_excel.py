@@ -48,19 +48,15 @@ def main():
     # 重新載入成員 map
     member_map = {r["name"]: r["id"] for r in c.execute("SELECT id, name FROM members").fetchall()}
 
-    # ── 2. 產品 ID mapping ──────────────────────────────────────────────────
-    product_rows = c.execute("SELECT id, name FROM products").fetchall()
-    product_map = {}
-    for p in product_rows:
-        n = p["name"]
-        pid = p["id"]
-        if "Image Search" in n or "以圖搜圖" in n:
-            product_map["Image Search"] = pid
-            product_map["以圖搜圖"] = pid
-        elif "IMPA SaaS" in n or "LINE OA SaaS" in n:
-            product_map["IMPA SaaS"] = pid
-        elif "LINE WORKS" in n:
-            product_map["LINE WORKS"] = pid
+    # ── 2. 產品 ID mapping（固定對應，以防 DB 有多個 IMPA 相關產品）──────────
+    # LINE OA SaaS = IMPA → 統一使用 product_id=2 (CoolBe IMPA SaaS)
+    product_map = {
+        "Image Search": 1,
+        "以圖搜圖":      1,
+        "IMPA SaaS":    2,
+        "LINE OA SaaS": 2,
+        "LINE WORKS":   3,
+    }
 
     # ── 3. 清除現有 5 月週記錄，改用 Excel 真實資料 ─────────────────────────
     # 先刪除 2026-05 的週記錄
